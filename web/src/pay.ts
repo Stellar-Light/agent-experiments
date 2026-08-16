@@ -73,11 +73,22 @@ function agentName(k: string): string {
   try { return localStorage.getItem("name:" + k) || DEFAULT_NAMES[k]; } catch { return DEFAULT_NAMES[k]; }
 }
 document.addEventListener("click", (e) => {
-  const el = (e.target as HTMLElement).closest?.("[data-agent]") as HTMLElement | null;
-  if (!el) return;
-  const k = el.dataset.agent!;
-  const next = prompt("Rename this agent:", agentName(k));
-  if (next && next.trim()) { localStorage.setItem("name:" + k, next.trim().slice(0, 24)); location.reload(); }
+  const btn = (e.target as HTMLElement).closest?.("[data-rename]") as HTMLElement | null;
+  if (!btn) return;
+  const k = (btn as HTMLElement).dataset.rename!;
+  const nameEl = document.querySelector(`[data-agent="${k}"]`) as HTMLElement;
+  if (!nameEl || nameEl.querySelector("input")) return;
+  const current = agentName(k);
+  nameEl.innerHTML = `<input class="rename" value="${current}" maxlength="24">`;
+  const input = nameEl.querySelector("input")! as HTMLInputElement;
+  input.focus(); input.select();
+  const commit = () => {
+    const v = input.value.trim().slice(0, 24) || current;
+    try { localStorage.setItem("name:" + k, v); } catch {}
+    renderIdentity();
+  };
+  input.addEventListener("keydown", (ev) => { if (ev.key === "Enter") commit(); if (ev.key === "Escape") renderIdentity(); });
+  input.addEventListener("blur", commit);
 });
 
 // USD mode: live XLM/USD from the reflector oracle (mainnet, read-only, keyless)
@@ -323,15 +334,18 @@ function pushHistory(r: Run) {
 }
 renderHistory();
 // identity strip
-const strip = document.getElementById("idstrip");
-if (strip) {
-  const card = (addr: string, name: string, role: string, key: string) => `
+function renderIdentity() {
+  const strip = document.getElementById("idstrip");
+  if (!strip) return;
+  const card = (addr: string, key: string, role: string) => `
     <div class="idcard"><img src="${blobAvatar(addr, 40)}" width="40" height="40" alt="">
-      <div><div class="idname" data-agent="${key}" title="click to rename">${name}</div><div class="idrole">${role}</div>
-      <a class="idaddr" href="https://stellar.expert/explorer/testnet/account/${addr}" target="_blank" rel="noreferrer">${addr.slice(0, 6)}…${addr.slice(-4)}</a></div></div>`;
-  strip.innerHTML = card(SESSION.nova.address, agentName("pip"), "autonomous buyer, pays confidentially", "pip") +
-    card(SESSION.vega.address, agentName("momo"), "autonomous seller, verifies by decryption", "momo");
+      <div><div class="idname" data-agent="${key}">${agentName(key)}</div><div class="idrole">${role}</div>
+      <a class="idaddr" href="https://stellar.expert/explorer/testnet/account/${addr}" target="_blank" rel="noreferrer">${addr.slice(0, 6)}…${addr.slice(-4)}</a></div>
+      <button class="renbtn" data-rename="${key}">rename</button></div>`;
+  strip.innerHTML = card(SESSION.nova.address, "pip", "autonomous buyer, pays confidentially") +
+    card(SESSION.vega.address, "momo", "autonomous seller, verifies by decryption");
 }
+renderIdentity();
 const ln = $("l-nova") as HTMLAnchorElement, lv = $("l-vega") as HTMLAnchorElement;
 ln.href = `https://stellar.expert/explorer/testnet/account/${SESSION.nova.address}`;
 ln.textContent = SESSION.nova.address;

@@ -27,9 +27,15 @@
   button.run:disabled{opacity:.45;cursor:default}
   #amt{font-family:var(--mono);font-size:13px;padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);width:230px;max-width:45vw}
   #amt:focus{outline:none;border-color:var(--ink)}
-  #denom{font-family:var(--mono);font-size:13px;padding:10px 10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
-  .idname[data-agent]{cursor:pointer}
-  .idname[data-agent]:hover::after{content:" ✎";color:var(--sub);font-size:11px}
+  .selwrap{position:relative}
+  .selwrap::after{content:"";position:absolute;right:12px;top:50%;width:7px;height:7px;border-right:1.5px solid var(--sub);border-bottom:1.5px solid var(--sub);transform:translateY(-70%) rotate(45deg);pointer-events:none}
+  #denom{-webkit-appearance:none;appearance:none;font-family:var(--mono);font-size:13px;padding:10px 30px 10px 13px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+  #denom:hover{border-color:var(--sub)}
+  #denom:focus{outline:2px solid var(--ink);outline-offset:1px;border-color:var(--ink)}
+    .renbtn{margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:.04em;padding:5px 10px;border-radius:7px;border:1px solid var(--line);background:transparent;color:var(--sub);cursor:pointer}
+  .renbtn:hover{color:var(--ink);border-color:var(--sub)}
+  input.rename{font:inherit;font-weight:650;font-size:13.5px;border:1px solid var(--ink);border-radius:6px;padding:2px 6px;width:120px;background:var(--card);color:var(--ink)}
+  input.rename:focus{outline:none}
   pre.byo{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow-x:auto;font-family:var(--mono);font-size:11.5px;line-height:1.7;margin:8px 0 0}
   .panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:16px 0}
   .panel h2{font-size:13px;margin:0 0 10px;font-weight:600}
@@ -79,8 +85,10 @@
   .slip{background:#fff;color:#111;width:400px;max-width:100%;border-radius:10px;border:1px solid #E5E5E8;
     box-shadow:0 8px 28px rgba(0,0,0,.09);padding:24px 24px 16px;font-family:var(--mono);font-size:12px;
     opacity:0;transform:translateY(-10px);transition:opacity .5s,transform .5s;display:none}
-  .slip.printed{opacity:1;transform:none;display:block;animation:printout 2.2s cubic-bezier(.2,.7,.3,1);clip-path:inset(0 0 0 0)}
-  @keyframes printout{0%{clip-path:inset(0 0 100% 0);transform:translateY(-26px)}100%{clip-path:inset(0 0 0% 0);transform:none}}
+  .feed{overflow:hidden;max-height:0;width:100%;display:flex;justify-content:center}
+  .feed.printing{animation:paperfeed 3.4s steps(26, end) forwards}
+  @keyframes paperfeed{from{max-height:0}to{max-height:760px}}
+  .slip.printed{opacity:1;transform:none;display:block}
   .printcol{display:flex;flex-direction:column;align-items:center;width:400px;max-width:100%}
   .slot{width:88%;height:10px;border-radius:6px;background:var(--ink);opacity:.85;margin-bottom:-4px;z-index:2;box-shadow:0 2px 8px rgba(0,0,0,.25)}
   .slip{position:relative}
@@ -107,7 +115,7 @@
     <h1>Confidential Agent Commerce</h1>
     <p class="sub">Two autonomous agents transact on Stellar testnet. The amount settles encrypted on-chain. The seller confirms payment by decrypting it, a registered auditor can always read it, everyone else sees nothing.</p>
     <div class="runbar">
-      <select id="denom"><option value="xlm">XLM</option><option value="usd">USD</option></select>
+      <div class="selwrap"><select id="denom" aria-label="currency"><option value="xlm">XLM</option><option value="usd">USD, oracle to XLM</option></select></div>
       <input id="amt" inputmode="decimal" placeholder="amount (blank = random)" autocomplete="off">
       <button class="run" id="run">Run a real payment</button>
       <span class="status" id="status"></span>
@@ -118,7 +126,7 @@
 
   <div class="chat" id="chat"><div class="empty">Press run. This is not a simulation: a new payment is negotiated, proven, and settled on testnet while you watch. Takes about 20 seconds. Price it in XLM or in dollars (converted live from the reflector oracle). Click an agent name to rename it.</div></div>
 
-  <div class="slipwrap"><div class="printcol"><div class="slot" id="slot" style="display:none"></div><div class="slip" id="slip"></div></div></div>
+  <div class="slipwrap"><div class="printcol"><div class="slot" id="slot" style="display:none"></div><div class="feed" id="feedmask"><div class="slip" id="slip"></div></div></div></div>
   <div class="exports" id="exports">
     <button id="b-print">Print / PDF</button>
     <button id="b-txt">TXT</button>

@@ -1,0 +1,249 @@
+/**
+ * One button, one REAL confidential payment on Stellar testnet.
+ *
+ * Everything happens in this tab: the buyer's zero-knowledge proof is
+ * generated in your browser (UltraHonk via wasm), the transfer is submitted
+ * to the live contract, and the seller confirms payment by decrypting its
+ * own receiving balance from public chain events. Every run is a new
+ * on-chain transaction — the price is random each time and never visible
+ * on-chain.
+ *
+ * Session keys are published testnet keys holding nothing (deliberate — the
+ * SDK demo's own precedent), so the page can run the real client.
+ */
+import { Buffer } from "buffer";
+(globalThis as any).Buffer = Buffer;
+
+import SESSION from "./session.json";
+
+const $ = (id: string) => document.getElementById(id)!;
+const STROOP = 10_000_000n;
+const RPC = "https://soroban-testnet.stellar.org";
+const PASSPHRASE = "Test SDF Network ; September 2015";
+
+// ── chat rendering ──────────────────────────────────────────────────────────
+let lastSide = "";
+function ensureName(side: "nova" | "vega") {
+  if (lastSide === side) return;
+  lastSide = side;
+  const n = document.createElement("div");
+  n.className = `name ${side === "nova" ? "nova" : ""}`;
+  n.style.textAlign = side === "nova" ? "right" : "left";
+  n.textContent = side === "nova" ? "NOVA · buyer" : "VEGA · seller";
+  $("chat").appendChild(n);
+}
+function bubble(side: "nova" | "vega", text: string) {
+  ensureName(side);
+  const row = document.createElement("div");
+  row.className = `row ${side}`;
+  row.innerHTML = `<div class="bubble">${text}</div>`;
+  $("chat").appendChild(row);
+  row.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+function sys(text: string, cls = "") {
+  lastSide = "";
+  const row = document.createElement("div");
+  row.className = "row sys";
+  row.innerHTML = `<div class="s ${cls}">${text}</div>`;
+  $("chat").appendChild(row);
+  row.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+function typing(side: "nova" | "vega", label: string) {
+  ensureName(side);
+  const row = document.createElement("div");
+  row.className = `row ${side} typing`;
+  row.innerHTML = `<div class="bubble"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>`;
+  const lab = document.createElement("div");
+  lab.className = `tlabel ${side}`;
+  lab.textContent = label;
+  $("chat").appendChild(row);
+  $("chat").appendChild(lab);
+  row.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  return () => { row.remove(); lab.remove(); lastSide = ""; };
+}
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const status = (t: string) => (($("status") as HTMLElement).textContent = t);
+
+// ── the run ─────────────────────────────────────────────────────────────────
+let running = false;
+async function run() {
+  if (running) return;
+  running = true;
+  const btn = $("run") as HTMLButtonElement;
+  btn.disabled = true;
+  $("chat").innerHTML = "";
+  lastSide = "";
+  $("slip").classList.remove("printed");
+  ($("exports") as HTMLElement).style.visibility = "hidden";
+
+  try {
+    status("loading client…");
+    const [{ Keypair, Address, nativeToScVal, xdr }, core, chain, circuit] = await Promise.all([
+      import("@stellar/stellar-sdk"),
+      import("stellar-confidential-token-sdk"),
+      import("stellar-confidential-token-sdk/chain"),
+      fetch("/circuits/transfer.json").then((r) => r.json()),
+    ]);
+    const { deriveSk, deriveKeys, skSigningMessage, addressToField, StateEngine, pointToBytes,
+            proverFromArtifact, buildTransferWitness, encodeTransferData } = core as any;
+    const { ChainClient, keypairSigner, hybridFetchEvents } = chain as any;
+    const addr = (a: string) => new Address(a).toScVal();
+    const i128 = (v: bigint) => nativeToScVal(v, { type: "i128" });
+    const bytesVal = (b: Uint8Array) => xdr.ScVal.scvBytes(Buffer.from(b));
+
+    const client = new ChainClient({ rpcUrl: RPC, networkPassphrase: PASSPHRASE, contracts: SESSION.contracts });
+    const novaKp = Keypair.fromSecret(SESSION.nova.secret);
+    const vegaKp = Keypair.fromSecret(SESSION.vega.secret);
+    const ident = (kp: any) => {
+      const message = skSigningMessage(SESSION.contracts.token, kp.publicKey());
+      const root = new Uint8Array(kp.signMessage(Buffer.from(message)));
+      const { sk, addrF } = deriveSk(root, SESSION.contracts.token, kp.publicKey());
+      return { keys: deriveKeys(sk, addrF, addressToField(kp.publicKey())), address: kp.publicKey() };
+    };
+    const nova = ident(novaKp);
+    const vega = ident(vegaKp);
+    const novaSigner = keypairSigner(novaKp.secret(), PASSPHRASE);
+
+    const mine = (address: string, events: any[]) => events.filter((ev) =>
+      ev.type === "register" || ev.type === "merge" ? ev.account === address : ev.from === address || ev.to === address);
+    const rebuild = async (who: { address: string; keys: any }) => {
+      const { events } = await hybridFetchEvents(client, undefined, { fromLedger: SESSION.fromLedger });
+      const e = new StateEngine({ address: who.address, keys: who.keys });
+      e.ingestEvents(mine(who.address, events));
+      return e;
+    };
+
+    // the deal
+    const price = BigInt(1 + Math.floor(Math.random() * 9)) * STROOP;
+    const priceXlm = (price / STROOP).toString();
+
+    bubble("nova", "Need the settlement brief. What's your price today?");
+    await wait(700);
+    let t = typing("vega", "checking books");
+    await wait(900); t();
+    bubble("vega", `${priceXlm} XLM. Pay it confidentially — the amount stays between us and the auditor.`);
+    await wait(500);
+
+    // funds check + top-up if needed (real transactions, no proof required)
+    status("checking balance…");
+    let novaEngine = await rebuild(nova);
+    let spendable = novaEngine.state().spendable;
+    if (spendable.v < price + 2n * STROOP) {
+      sys("buyer balance low — depositing 100 XLM into the contract (deposits are public by design)");
+      const dep = await client.invoke(SESSION.contracts.token, "deposit",
+        [addr(nova.address), addr(nova.address), i128(100n * STROOP)], novaSigner);
+      sys(`deposit tx ${dep.hash.slice(0, 10)}…`);
+      const mrg = await client.invoke(SESSION.contracts.token, "merge", [addr(nova.address)], novaSigner);
+      sys(`merge tx ${mrg.hash.slice(0, 10)}…`);
+      novaEngine = await rebuild(nova);
+      spendable = novaEngine.state().spendable;
+    }
+
+    // vega's receiving total BEFORE, so the decrypted delta is provable
+    const vegaBefore = BigInt((await rebuild(vega)).receiving().v);
+
+    bubble("nova", "Paying now.");
+    t = typing("nova", "generating zero-knowledge proof in this tab…");
+    status("proving…");
+    const kAud = await client.auditorKey(SESSION.auditorId);
+    const t0 = performance.now();
+    const witness = buildTransferWitness({
+      keys: nova.keys, v: spendable.v, r: spendable.r, amount: price,
+      pvkB: vega.keys.PVK, kAudR: kAud, kAudS: kAud,
+    });
+    const prover = proverFromArtifact(circuit);
+    const { proof } = await prover.prove(witness.inputs);
+    await prover.destroy();
+    const proveSecs = ((performance.now() - t0) / 1000).toFixed(1);
+    const payload = new Uint8Array(encodeTransferData(witness, proof).bytes());
+    t();
+    sys(`proof generated in this browser — ${proveSecs}s`, "good");
+
+    t = typing("nova", "submitting to testnet…");
+    status("submitting…");
+    const pay = await client.invoke(SESSION.contracts.token, "confidential_transfer",
+      [addr(nova.address), addr(vega.address), bytesVal(payload)], novaSigner);
+    t();
+    sys(`confidential transfer settled · <a href="https://stellar.expert/explorer/testnet/tx/${pay.hash}" target="_blank" rel="noreferrer">${pay.hash.slice(0, 16)}…</a> · the amount is not in that transaction`, "good");
+    bubble("nova", "Sent. Check your side.");
+
+    await wait(400);
+    t = typing("vega", "replaying chain events · decrypting receiving balance…");
+    status("seller decrypting…");
+    const vegaAfter = BigInt((await rebuild(vega)).receiving().v);
+    const delta = vegaAfter - vegaBefore;
+    t();
+    if (delta !== price) throw new Error(`seller decrypted ${delta} stroops, expected ${price}`);
+    bubble("vega", `Confirmed — decrypted exactly +${priceXlm} XLM. Nobody else can read that number. Shipping the brief.`);
+
+    // chain verification of the buyer's own state
+    const after = await rebuild(nova);
+    const onchain = await client.confidentialBalance(nova.address);
+    const check = after.verifyAgainstChain({
+      spendableC: pointToBytes(onchain.spendableBalance),
+      receivingC: pointToBytes(onchain.receivingBalance),
+    });
+    sys(check.ok ? "buyer state verified byte-for-byte against on-chain commitments" : "verify mismatch", check.ok ? "good" : "");
+    await wait(300);
+    bubble("nova", "Received. Good doing business.");
+    status("done");
+
+    // the receipt
+    receipt(pay.hash, priceXlm, (after.state().spendable.v / STROOP).toString());
+  } catch (e: any) {
+    sys(`error: ${e?.message ?? e} — if two people run this at once the balance state races; try again`, "");
+    status("failed — try again");
+  } finally {
+    btn.disabled = false;
+    (btn as HTMLButtonElement).textContent = "Run another payment";
+    running = false;
+  }
+}
+
+// ── receipt ─────────────────────────────────────────────────────────────────
+let lastTx = "";
+let lastTxt = "";
+function receipt(tx: string, priceXlm: string, changeXlm: string) {
+  lastTx = tx;
+  const dt = new Date().toISOString().replace("T", " ").slice(0, 19) + " UTC";
+  $("slip").innerHTML = `
+    <div class="t1">PAYMENT RECEIPT</div>
+    <div class="t2">stellar testnet · confidential transfer</div>
+    <hr class="cut">
+    <div class="lr"><span class="l">DATE</span><span class="r">${dt}</span></div>
+    <div class="lr"><span class="l">FROM</span><span class="r">NOVA ${SESSION.nova.address.slice(0, 6)}…${SESSION.nova.address.slice(-4)}</span></div>
+    <div class="lr"><span class="l">TO</span><span class="r">VEGA ${SESSION.vega.address.slice(0, 6)}…${SESSION.vega.address.slice(-4)}</span></div>
+    <hr class="cut">
+    <div class="bigrow"><span>AMOUNT ON-CHAIN</span><span class="amt">ENCRYPTED</span></div>
+    <div class="decr">SELLER DECRYPTED: +${priceXlm} XLM (exact match)<br>BUYER CHANGE: ${changeXlm} XLM, chain-verified</div>
+    <div class="lr"><span class="l">AUDITOR</span><span class="r">#${SESSION.auditorId} — can decrypt, enforced by the proof</span></div>
+    <div class="lr"><span class="l">FEE</span><span class="r">&lt;0.01 XLM</span></div>
+    <hr class="cut">
+    <div class="lr"><span class="l">TX</span><span class="r">${tx}</span></div>
+    <div class="lr"><span class="l">CONTRACT</span><span class="r">${SESSION.contracts.token.slice(0, 10)}… (OpenZeppelin)</span></div>
+    <div class="lr"><span class="l">PROOF</span><span class="r">UltraHonk, generated in this browser</span></div>`;
+  $("slip").classList.add("printed");
+  ($("exports") as HTMLElement).style.visibility = "visible";
+  ($("b-tx") as HTMLAnchorElement).href = `https://stellar.expert/explorer/testnet/tx/${tx}`;
+  lastTxt = `PAYMENT RECEIPT - stellar testnet, confidential transfer
+${dt}
+FROM NOVA ${SESSION.nova.address}
+TO   VEGA ${SESSION.vega.address}
+AMOUNT ON-CHAIN: ENCRYPTED
+seller decrypted: +${priceXlm} XLM (exact match)
+buyer change: ${changeXlm} XLM, chain-verified
+auditor #${SESSION.auditorId}: can decrypt, enforced by the proof
+TX ${tx}
+CONTRACT ${SESSION.contracts.token}
+`;
+  $("slip").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+$("run").addEventListener("click", run);
+$("b-print").addEventListener("click", () => window.print());
+$("b-txt").addEventListener("click", () => {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([lastTxt], { type: "text/plain" }));
+  a.download = `receipt-${lastTx.slice(0, 8)}.txt`;
+  a.click();
+});

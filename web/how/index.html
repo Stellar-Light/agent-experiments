@@ -10,8 +10,8 @@
 <body>
 <div class="wrap">
   <nav>
-    <a class="home" href="/">⭑ E6</a>
-    <a href="/demo/">demo</a>
+    <a class="home" href="/">Confidential Agent Commerce</a>
+    <a href="/">run it</a>
     <a class="here" href="/how/">how it works</a>
     <a class="right" href="https://github.com/Stellar-Light/agent-experiments">github</a>
   </nav>
@@ -61,10 +61,10 @@ const keys    = deriveKeys(sk, ...);               // vk, PVK — deterministic,
   <ol>
     <li>fetches the contract's <strong>public events</strong> from RPC,</li>
     <li>filters to its own history and replays it through the SDK's state engine,</li>
-    <li><strong>decrypts</strong> its receiving balance with its derived viewing key → exactly 40 XLM,</li>
+    <li><strong>decrypts</strong> its receiving balance with its derived viewing key → exactly the invoiced amount,</li>
     <li>and — the trust boundary — <strong>re-commits its reconstructed state and compares it byte-for-byte against the commitments the chain itself holds</strong> (<span class="k">verifyAgainstChain</span>). An RPC, an archive, or an event feed can lie; the chain's own points can't be argued with.</li>
   </ol>
-  <p>Only after that check passed did VEGA ship the goods. The settlement confirmation <em>is</em> cryptography, end to end. (The <a href="/demo/">demo's</a> live mode makes your browser do this exact sequence.)</p>
+  <p>Only after that check passed did VEGA ship the goods. The settlement confirmation <em>is</em> cryptography, end to end. (The <a href="/">main page</a> makes your browser do this exact sequence, live, on every run.)</p>
 
   <h2>7 · The commerce protocol on top</h2>
   <div class="seq">NOVA (buyer)                      VEGA (seller)
@@ -83,7 +83,7 @@ const keys    = deriveKeys(sk, ...);               // vk, PVK — deterministic,
      │ ◀────────────────────────────────│
      │  verify signature ✓              │
      │  — deal complete —               │</div>
-  <p>Every message in that diagram happened and is logged; every ⛓ step has a transaction hash in the <a href="https://github.com/Stellar-Light/agent-experiments/tree/main/e6-confidential-commerce">receipt</a>, with envelope XDRs archived so the evidence outlives testnet resets.</p>
+  <p>Every message in that diagram happened and is logged; every ⛓ step has a transaction hash in the <a href="https://github.com/Stellar-Light/agent-experiments/tree/main/agents">receipt</a>, with envelope XDRs archived so the evidence outlives testnet resets.</p>
 
   <h2>8 · Who sees what, precisely</h2>
   <div class="tw"><table>
@@ -104,7 +104,7 @@ const keys    = deriveKeys(sk, ...);               // vk, PVK — deterministic,
 
   <h2>10 · Reproduce it</h2>
   <pre><code>git clone https://github.com/Stellar-Light/agent-experiments
-cd agent-experiments/e6-confidential-commerce
+cd agent-experiments/agents
 npm install
 node agents-commerce.mjs   # fresh agents, fresh receipts, ~60s</code></pre>
   <p>Fresh keypairs are generated and friendbot-funded at runtime. The run prints every transaction hash and writes <span class="k">receipt.json</span> with the four views and archived XDRs.</p>
@@ -113,7 +113,7 @@ node agents-commerce.mjs   # fresh agents, fresh receipts, ~60s</code></pre>
   <ul>
     <li>OpenZeppelin Confidential Tokens — <a href="https://github.com/OpenZeppelin/stellar-contracts">contracts</a> (confidential package: design docs, circuits, auditor example)</li>
     <li>aguilar1x — <a href="https://github.com/aguilar1x/stellar-confidential-token-sdk">stellar-confidential-token-sdk</a> and its <a href="https://stellar-confidential-token-sdk-web.vercel.app/">site</a> (SDK.md, INDEXER.md, the defect writeups this page references)</li>
-    <li>This experiment — <a href="https://github.com/Stellar-Light/agent-experiments">agent-experiments/e6</a>: the commerce script, receipts, and the AI-copilot build log</li>
+    <li>This experiment — <a href="https://github.com/Stellar-Light/agent-experiments">agent-experiments</a>: the commerce script, receipts, and the AI-copilot build log</li>
   </ul>
 
   <div class="foot">

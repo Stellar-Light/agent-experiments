@@ -312,12 +312,19 @@ CONTRACT ${SESSION.contracts.token}
 
 type Run = { tx: string; amt: string; at: string };
 function loadHistory(): Run[] { try { return JSON.parse(localStorage.getItem("runs") ?? "[]"); } catch { return []; } }
+let historyExpanded = false;
 function renderHistory() {
   const runs = loadHistory();
   if (!runs.length) return;
   ($("histwrap") as HTMLElement).style.display = "";
-  $("history").innerHTML = runs.map((r) =>
-    `<li>${r.at} UTC, ${r.amt} XLM (hidden on-chain), <a href="https://stellar.expert/explorer/testnet/tx/${r.tx}" target="_blank" rel="noreferrer">${r.tx.slice(0, 12)}…</a></li>`).join("");
+  const shown = historyExpanded ? runs : runs.slice(0, 3);
+  const row = (r: Run) =>
+    `<li>${r.at} UTC, ${r.amt} XLM (hidden on-chain), <a href="https://stellar.expert/explorer/testnet/tx/${r.tx}" target="_blank" rel="noreferrer">${r.tx.slice(0, 12)}…</a></li>`;
+  const toggle = runs.length > 3
+    ? `<li><button class="histmore" id="histmore">${historyExpanded ? "show fewer" : `show all ${runs.length}`}</button></li>`
+    : "";
+  $("history").innerHTML = shown.map(row).join("") + toggle;
+  document.getElementById("histmore")?.addEventListener("click", () => { historyExpanded = !historyExpanded; renderHistory(); });
 }
 function pushHistory(r: Run) {
   const runs = [r, ...loadHistory()].slice(0, 12);

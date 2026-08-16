@@ -48,7 +48,7 @@ const hex = (b) => Buffer.from(b).toString("hex");
 const now = () => new Date().toISOString();
 
 const receipt = {
-  experiment: "e6-confidential-agent-commerce",
+  experiment: "confidential-agent-commerce",
   network: "stellar:testnet",
   contracts: CONTRACTS,
   auditorId: AUDITOR_ID,
@@ -253,6 +253,8 @@ async function main() {
   }
 
   writeFileSync(new URL("./receipt.json", import.meta.url).pathname, JSON.stringify(receipt, null, 1));
+  const firstLed = Math.min(...receipt.chain.map((x) => x.ledger).filter(Boolean));
+  writeFileSync(new URL(`./receipt-${firstLed}.json`, import.meta.url).pathname, JSON.stringify(receipt, null, 1));
   if (publishSession) {
     const firstLedger = Math.min(...receipt.chain.map((c) => c.ledger).filter(Boolean));
     writeFileSync(new URL("./session.json", import.meta.url).pathname, JSON.stringify({

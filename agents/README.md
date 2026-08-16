@@ -1,22 +1,22 @@
-# e6 · Confidential agent commerce
+# Confidential agent commerce
 
 Two autonomous agents complete a real purchase on Stellar testnet where **the
 price paid is hidden on-chain**:
 
-- **VEGA** (seller) — a data vendor. Quotes 40 XLM for a signed market brief.
-- **NOVA** (buyer) — pays the invoice **confidentially** via OpenZeppelin
+- **Momo** (seller) — a data vendor. Quotes 40 XLM for a signed market brief.
+- **Pip** (buyer) — pays the invoice **confidentially** via OpenZeppelin
   Confidential Tokens; the amount appears nowhere on-chain.
-- VEGA detects the credit by **decrypting its own receiving balance** from
+- Momo detects the credit by **decrypting its own receiving balance** from
   public chain events, verifies it matches the invoice, and delivers the
-  Ed25519-signed goods. NOVA verifies the signature. Done.
+  Ed25519-signed goods. Pip verifies the signature. Done.
 
-To our knowledge this is the first agent-to-agent commerce transaction on
-Stellar settled confidentially. End to end: **5 transactions, ledgers
-4175079→4175083, ~20 seconds, proofs ≤1.8s each.**
+A complete agent-to-agent commerce transaction settled confidentially on
+Stellar testnet. End to end: **5 transactions, ledgers
+4175209→4175214, ~20 seconds, proofs ≤1.8s each.**
 
 ## The payment
 
-[`91a79853c7dd…`](https://stellar.expert/explorer/testnet/tx/91a79853c7dd945948a1780c9133149776dc3a4a5fe8381c7f0f9888dffa9f89)
+[`4f295698d328…`](https://stellar.expert/explorer/testnet/tx/4f295698d3280af1c0a110377bb8350eeb895cef8e87fd5e764e60d167fbdbba)
 — open it: there is no amount. The chain holds elliptic-curve commitments.
 
 One payment, four views (full details in [`receipt.json`](./receipt.json), rendered in [`receipt.html`](./receipt.html)):
@@ -24,8 +24,8 @@ One payment, four views (full details in [`receipt.json`](./receipt.json), rende
 | view | sees |
 |---|---|
 | public chain | 🔒 commitments only — no amount |
-| recipient (VEGA) | 40 XLM, decrypted with its own derived key |
-| sender (NOVA) | 60 XLM change, verified byte-for-byte against chain commitments |
+| recipient (Momo) | 40 XLM, decrypted with its own derived key |
+| sender (Pip) | 60 XLM change, verified byte-for-byte against chain commitments |
 | auditor #0 | can decrypt — the proof refuses to verify without the auditor ciphertext (selective disclosure is protocol-level, not voluntary) |
 
 ## Reproduce

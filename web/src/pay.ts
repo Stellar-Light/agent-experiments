@@ -31,8 +31,10 @@ function ensureName(side: "nova" | "vega") {
   n.className = `name ${side === "nova" ? "nova" : ""}`;
   n.style.textAlign = side === "nova" ? "right" : "left";
   const who = side === "nova" ? SESSION.nova.address : SESSION.vega.address;
-  n.innerHTML = `<img src="${blobAvatar(who)}" width="20" height="20" style="vertical-align:-5px;margin:0 5px 0 0;border-radius:50%"> ${side === "nova" ? agentName("pip") + " (buyer)" : agentName("momo") + " (seller)"}`;
-  if (side === "nova") { n.innerHTML = `${side === "nova" ? agentName("pip") + " (buyer)" : ""} <img src="${blobAvatar(who)}" width="20" height="20" style="vertical-align:-5px;margin:0 0 0 5px;border-radius:50%">`; }
+  const face = `<img src="${blobAvatar(who)}" width="20" height="20" style="vertical-align:-5px;border-radius:50%">`;
+  n.innerHTML = side === "nova"
+    ? `${agentName("pip")} (buyer) <span style="margin-left:5px">${face}</span>`
+    : `<span style="margin-right:5px">${face}</span> ${agentName("momo")} (seller)`;
   $("chat").appendChild(n);
 }
 function bubble(side: "nova" | "vega", text: string) {
@@ -66,7 +68,7 @@ function typing(side: "nova" | "vega", label: string) {
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const status = (t: string) => (($("status") as HTMLElement).textContent = t);
 
-// agent names: cute defaults, click to rename, saved locally
+// agent display names (fixed)
 const DEFAULT_NAMES: Record<string, string> = { pip: "Pip", momo: "Momo" };
 function agentName(k: string): string {
   try { return localStorage.getItem("name:" + k) || DEFAULT_NAMES[k]; } catch { return DEFAULT_NAMES[k]; }
@@ -142,11 +144,10 @@ async function run() {
     const parseXlm = (raw: string): bigint | null => {
       const t = raw.trim();
       if (!t) return null;
-      if (!/^\d+(\.\d{1,7})?$/.test(t)) throw new Error("amount must be XLM with up to 7 decimals, e.g. 3.7");
+      if (!/^\d+(\.\d{1,7})?$/.test(t)) throw new Error("amount must be a number with up to 7 decimals, e.g. 3.7");
       const [i, f = ""] = t.split(".");
       const v = BigInt(i) * STROOP + BigInt((f + "0000000").slice(0, 7));
       if (v <= 0n) throw new Error("amount must be positive");
-      if (v > 200n * STROOP) throw new Error("keep it ≤ 200 XLM, it's a shared testnet balance");
       return v;
     };
     const denom = ($("denom") as HTMLSelectElement).value;
@@ -158,9 +159,11 @@ async function run() {
       const rate = await xlmUsdRate(sdkAll);
       const usd = Number(typed) / 1e7;
       price = BigInt(Math.round((usd / rate) * 1e7));
+      if (price > 200n * STROOP) throw new Error(`$${usd} is ${(Number(price) / 1e7).toFixed(2)} XLM at the current rate; keep it under 200 XLM, it's a shared testnet balance`);
       priceNote = `$${usd} at ${rate.toFixed(4)} USD/XLM (live reflector oracle) = ${(Number(price) / 1e7).toFixed(7)} XLM`;
       sys(`invoice denominated in dollars: ${priceNote}`);
     } else {
+      if (typed && typed > 200n * STROOP) throw new Error("keep it under 200 XLM, it's a shared testnet balance");
       price = typed ?? BigInt(1 + Math.floor(Math.random() * 9)) * STROOP;
       if (typed) sys(`price set by you: ${(Number(price) / 1e7).toString()} XLM, watch the seller decrypt exactly that`);
     }
@@ -238,8 +241,15 @@ async function run() {
     bubble("nova", "Received. Good doing business.");
     status("");
 
-    // the receipt
-    receipt(pay.hash, priceXlm, (Number(after.state().spendable.v) / 1e7).toString());
+    // the receipt, with the actual fee charged
+    let feeXlm = "";
+    try {
+      const tr = await fetch(RPC, { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getTransaction", params: { hash: pay.hash } }) }).then((r) => r.json());
+      const fc = xdr.TransactionResult.fromXDR(tr.result.resultXdr, "base64").feeCharged().toString();
+      feeXlm = (Number(fc) / 1e7).toFixed(7).replace(/0+$/, "").replace(/\.$/, "");
+    } catch {}
+    receipt(pay.hash, priceXlm, (Number(after.state().spendable.v) / 1e7).toString(), feeXlm);
 
     // live panels: chain view vs decrypted view + history
     try {
@@ -252,7 +262,8 @@ async function run() {
     } catch {}
     pushHistory({ tx: pay.hash, amt: priceXlm, at: new Date().toISOString().slice(0, 16).replace("T", " ") });
   } catch (e: any) {
-    sys(`error: ${e?.message || e?.name || String(e) || "unknown"}. If two people run this at once the balance state races; try again`, "");
+    const msg = document.createTextNode(String(e?.message || e?.name || e || "unknown")).textContent!.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]!));
+    sys(`error: ${msg}. If two people run this at once the balance state races; try again`, "");
     status("");
   } finally {
     btn.disabled = false;
@@ -263,7 +274,7 @@ async function run() {
 // ── receipt ─────────────────────────────────────────────────────────────────
 let lastTx = "";
 let lastTxt = "";
-function receipt(tx: string, priceXlm: string, changeXlm: string) {
+function receipt(tx: string, priceXlm: string, changeXlm: string, feeXlm = "") {
   lastTx = tx;
   const dt = new Date().toISOString().replace("T", " ").slice(0, 19) + " UTC";
   $("slip").innerHTML = `
@@ -277,7 +288,7 @@ function receipt(tx: string, priceXlm: string, changeXlm: string) {
     <div class="bigrow"><span>AMOUNT ON-CHAIN</span><span class="amt">ENCRYPTED</span></div>
     <div class="decr">SELLER DECRYPTED: +${priceXlm} XLM (exact match)<br>BUYER CHANGE: ${changeXlm} XLM, chain-verified</div>
     <div class="lr"><span class="l">AUDITOR</span><span class="r">#${SESSION.auditorId}, can decrypt, enforced by the proof</span></div>
-    <div class="lr"><span class="l">FEE</span><span class="r">≈0.02–0.05 XLM (proof verification)</span></div>
+    <div class="lr"><span class="l">FEE</span><span class="r">${feeXlm ? feeXlm + " XLM (actual)" : "unavailable"}</span></div>
     <hr class="cut">
     <div class="lr"><span class="l">TX</span><span class="r"><a href="https://stellar.expert/explorer/testnet/tx/${tx}" target="_blank" rel="noreferrer">${tx}</a></span></div>
     <div class="lr"><span class="l">CONTRACT</span><span class="r"><a href="https://stellar.expert/explorer/testnet/contract/${SESSION.contracts.token}" target="_blank" rel="noreferrer">${SESSION.contracts.token.slice(0, 10)}…</a> (OpenZeppelin)</span></div>

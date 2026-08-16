@@ -13,13 +13,15 @@ checks, per payment transaction:
 3. **Classic balances**: the agents' Horizon balances move only on deposits
    and fees — per-payment amounts never touch them.
 4. Resource facts, for context: proof verification costs ~96M instructions
-   and 0.02–0.05 XLM in fees per transfer.
+   and roughly 0.02 to 0.05 XLM in fees per transfer (the site receipt now
+   prints the actual fee charged per transaction).
 
 Audit-of-the-audit note: the first version of this script flagged a false
 positive on the 5 XLM run — it was searching for the single ASCII character
 "5", which matches any binary. The fixed script searches only unambiguous
 patterns (≥6-char ASCII, full 8-byte integers). The claim held; the auditor
-was the bug. Both versions are in git history on purpose.
+was the bug. The false-positive version was never committed separately, so
+this paragraph is its record; the fixed script is what ships.
 
 What is public and stays public: the sender and recipient addresses, the
 fact and time of the payment, deposits into the contract, and fees.

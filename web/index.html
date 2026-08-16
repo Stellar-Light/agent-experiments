@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#F7F7F8" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0E0E10" media="(prefers-color-scheme: dark)">
+<meta property="og:title" content="Confidential Agent Commerce">
+<meta property="og:description" content="Two agents transact on Stellar testnet. The amount settles encrypted on-chain. Run a real payment from your browser.">
+<meta property="og:url" content="https://confidential-agent-commerce.vercel.app/">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Confidential Agent Commerce">
+<meta name="twitter:description" content="Real confidential payments between agents on Stellar testnet, proven in your browser.">
 <title>Confidential Agent Commerce</title>
 <meta name="description" content="Two autonomous agents transact on Stellar testnet. The amount settles encrypted on-chain. Run a real payment and watch it happen.">
 <style>
@@ -18,7 +25,7 @@
     :root{ --bg:#0E0E10; --card:#17171A; --ink:#F2F2F3; --sub:#8E8E95; --line:#26262B; --vega:#26262B; --vega-ink:#F2F2F3; }
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  button,select,a,.renbtn,[data-rename]{touch-action:manipulation;-webkit-user-select:none;user-select:none}
+  button,select,a{touch-action:manipulation;-webkit-user-select:none;user-select:none}
   input{touch-action:manipulation}
   html{background:var(--bg)}
   body{margin:0;font-family:var(--sans);background:var(--bg);color:var(--ink);font-size:15px;line-height:1.5}
@@ -109,6 +116,11 @@
   .exports button,.exports a{font-family:var(--mono);font-size:11px;padding:7px 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;text-decoration:none}
   footer{margin-top:36px;color:var(--sub);font-size:12.5px;line-height:1.7}
   footer a{color:var(--sub)}
+  @media (prefers-reduced-motion: reduce){
+    .feed .slip,.feed.printing .slip{transition:none}
+    .msg{animation:none}
+    .dot{animation:none;opacity:.6}
+  }
   @media (pointer: coarse){
     #amt,#denom{font-size:16px}
     .bubble{font-size:15px}
@@ -123,15 +135,15 @@
     <p class="sub">Two autonomous agents transact on Stellar testnet. The amount settles encrypted on-chain. The seller confirms payment by decrypting it, a registered auditor can always read it, everyone else sees nothing.</p>
     <div class="runbar">
       <div class="selwrap"><select id="denom" aria-label="currency"><option value="xlm">XLM</option><option value="usd">USD, oracle to XLM</option></select></div>
-      <input id="amt" inputmode="decimal" placeholder="amount (blank = random)" autocomplete="off">
+      <input id="amt" inputmode="decimal" placeholder="amount (blank = random)" autocomplete="off" aria-label="payment amount">
       <button class="run" id="run">Run payment</button>
-      <span class="status" id="status"></span>
+      <span class="status" id="status" aria-live="polite"></span>
     </div>
   </header>
 
   <div class="idstrip" id="idstrip"></div>
 
-  <div class="chat" id="chat"><div class="empty">Press run. This is not a simulation: a new payment is negotiated, proven, and settled on testnet while you watch. Takes about 20 seconds. Price it in XLM or in dollars (converted live from the reflector oracle). </div></div>
+  <div class="chat" id="chat" role="log" aria-live="polite"><div class="empty">Press run. This is not a simulation: a new payment is negotiated, proven, and settled on testnet while you watch. Takes about 20 seconds. Price it in XLM or in dollars (converted live from the reflector oracle). </div></div>
 
   <div class="slipwrap"><div class="printcol"><div class="slot" id="slot" style="display:none"></div><div class="feed" id="feedmask"><div class="slip" id="slip"></div></div></div></div>
   <div class="exports" id="exports">

@@ -16,9 +16,9 @@
     <a class="right" href="https://github.com/Stellar-Light/agent-experiments">github</a>
   </nav>
 
-  <div class="eyebrow">the mechanics, honestly</div>
+  <div class="eyebrow">the mechanics</div>
   <h1>How two agents traded at a price the chain can't read</h1>
-  <p class="lede">Everything below is the machinery behind <a href="https://stellar.expert/explorer/testnet/tx/4f295698d3280af1c0a110377bb8350eeb895cef8e87fd5e764e60d167fbdbba">one real testnet transaction</a>. Where the detail belongs to the underlying protocol, we say so and point at its specs, the primitive is OpenZeppelin's; the client is aguilar1x's <span class="k">stellar-confidential-token-sdk</span>; the commerce protocol on top is this experiment's.</p>
+  <p class="lede">Everything below is the machinery behind <a href="https://stellar.expert/explorer/testnet/tx/4f295698d3280af1c0a110377bb8350eeb895cef8e87fd5e764e60d167fbdbba">one real testnet transaction</a>. Where the detail belongs to the underlying protocol, we say so and point at its specs: the primitive is OpenZeppelin's; the client is aguilar1x's <span class="k">stellar-confidential-token-sdk</span>; the commerce protocol on top is this experiment's.</p>
 
   <h2>1 · Balances that are points, not numbers</h2>
   <p>Inside the confidential token contract, your balance is not an integer anyone can read, it is an <strong>elliptic-curve commitment</strong>: a point that binds an amount together with a random <em>blinding factor</em>. Two properties make this useful:</p>
@@ -82,7 +82,7 @@ const keys    = deriveKeys(sk, ...);               // vk, PVK, deterministic, no
      │        goods + Ed25519 signature │
      │ ◀────────────────────────────────│
      │  verify signature ✓              │
-     │, deal complete, │</div>
+     │  deal complete                   │</div>
   <p>Every message in that diagram happened and is logged; every ⛓ step has a transaction hash in the <a href="https://github.com/Stellar-Light/agent-experiments/tree/main/agents">receipt</a>, with envelope XDRs archived so the evidence outlives testnet resets.</p>
 
   <h2>8 · Who sees what, precisely</h2>

@@ -241,7 +241,7 @@ function receipt(tx: string, priceXlm: string, changeXlm: string) {
     <div class="bigrow"><span>AMOUNT ON-CHAIN</span><span class="amt">ENCRYPTED</span></div>
     <div class="decr">SELLER DECRYPTED: +${priceXlm} XLM (exact match)<br>BUYER CHANGE: ${changeXlm} XLM, chain-verified</div>
     <div class="lr"><span class="l">AUDITOR</span><span class="r">#${SESSION.auditorId} — can decrypt, enforced by the proof</span></div>
-    <div class="lr"><span class="l">FEE</span><span class="r">&lt;0.01 XLM</span></div>
+    <div class="lr"><span class="l">FEE</span><span class="r">≈0.02–0.05 XLM (proof verification)</span></div>
     <hr class="cut">
     <div class="lr"><span class="l">TX</span><span class="r">${tx}</span></div>
     <div class="lr"><span class="l">CONTRACT</span><span class="r">${SESSION.contracts.token.slice(0, 10)}… (OpenZeppelin)</span></div>

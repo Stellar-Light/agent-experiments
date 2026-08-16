@@ -1,0 +1,77 @@
+{
+ "auditedAt": "2026-08-16T17:26:57.211Z",
+ "cases": [
+  {
+   "label": "session payment (40 XLM)",
+   "tx": "4f295698d3280af1c0a110377bb8350eeb895cef8e87fd5e764e60d167fbdbba",
+   "ledger": 4175214,
+   "status": "SUCCESS",
+   "envelopeBytes": 31820,
+   "declaredFeeStroops": 450512,
+   "resourceFeeStroops": "450412",
+   "instructions": 95727067,
+   "ops": [
+    {
+     "type": "invokeHostFunction",
+     "contract": "CBFOJTALVTO3LPZZHEXDD44K7RQKQJGAASF6XOKP5FWZD6WYKV4WN7HF",
+     "function": "confidential_transfer",
+     "argTypes": [
+      "scvAddress",
+      "scvAddress",
+      "scvBytes"
+     ],
+     "args": [
+      "GDE76W4TRKRFTU7JREGV5ZJ4CUHPLDYFJWJE6P2JUHW3VMXDS6SLOG7T",
+      "GCVDNTJA23S7DZNIWEWQLWMXBA5KA5Y6SWKMOHSMN2FIQKHHSRKV5BV5",
+      "bytes[15356]"
+     ]
+    }
+   ],
+   "amountSearch": {
+    "stroops": "400000000",
+    "i128_le_offsets": [],
+    "i128_be_offsets": [],
+    "ascii_stroops_offsets": [],
+    "verdict": "absent — amount appears nowhere in the envelope"
+   },
+   "semanticCheck": "no numeric amount argument in any operation"
+  },
+  {
+   "label": "browser run (5 XLM)",
+   "tx": "438701a217bdfee457f671614c9972cc0ee1e374ba2b0a518c457c37ab75c62a",
+   "ledger": 4175613,
+   "status": "SUCCESS",
+   "envelopeBytes": 31820,
+   "declaredFeeStroops": 239116,
+   "resourceFeeStroops": "239016",
+   "instructions": 95998765,
+   "ops": [
+    {
+     "type": "invokeHostFunction",
+     "contract": "CBFOJTALVTO3LPZZHEXDD44K7RQKQJGAASF6XOKP5FWZD6WYKV4WN7HF",
+     "function": "confidential_transfer",
+     "argTypes": [
+      "scvAddress",
+      "scvAddress",
+      "scvBytes"
+     ],
+     "args": [
+      "GDE76W4TRKRFTU7JREGV5ZJ4CUHPLDYFJWJE6P2JUHW3VMXDS6SLOG7T",
+      "GCVDNTJA23S7DZNIWEWQLWMXBA5KA5Y6SWKMOHSMN2FIQKHHSRKV5BV5",
+      "bytes[15356]"
+     ]
+    }
+   ],
+   "amountSearch": {
+    "stroops": "50000000",
+    "i128_le_offsets": [],
+    "i128_be_offsets": [],
+    "ascii_stroops_offsets": [],
+    "verdict": "absent — amount appears nowhere in the envelope"
+   },
+   "semanticCheck": "no numeric amount argument in any operation"
+  }
+ ],
+ "nova_classic_xlm": "9899.8249699",
+ "vega_classic_xlm": "9999.9738469"
+}

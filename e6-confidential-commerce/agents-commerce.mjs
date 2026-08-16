@@ -120,6 +120,10 @@ async function main() {
   // ── 0 · two fresh agents, funded
   const nova = Keypair.random();  // buyer
   const vega = Keypair.random();  // seller
+  // PUBLISH_SESSION=1: persist the session (secrets included, DELIBERATELY —
+  // testnet accounts holding nothing, published so a frontend can run the real
+  // client per the SDK web demo's own precedent).
+  const publishSession = process.env.PUBLISH_SESSION === "1";
   const novaSigner = keypairSigner(nova.secret(), NETWORK);
   const vegaSigner = keypairSigner(vega.secret(), NETWORK);
   receipt.agents = {
@@ -249,6 +253,20 @@ async function main() {
   }
 
   writeFileSync(new URL("./receipt.json", import.meta.url).pathname, JSON.stringify(receipt, null, 1));
+  if (publishSession) {
+    const firstLedger = Math.min(...receipt.chain.map((c) => c.ledger).filter(Boolean));
+    writeFileSync(new URL("./session.json", import.meta.url).pathname, JSON.stringify({
+      publishedOnPurpose: "testnet accounts holding nothing; secrets published so the frontend can run the real client (decrypt + verify) in the browser",
+      network: "stellar:testnet", contracts: CONTRACTS, auditorId: AUDITOR_ID,
+      nova: { address: nova.publicKey(), secret: nova.secret() },
+      vega: { address: vega.publicKey(), secret: vega.secret() },
+      fromLedger: firstLedger - 5,
+      priceStroops: PRICE.toString(), depositStroops: DEPOSIT.toString(),
+      chain: receipt.chain.map(({ step, tx, ledger, closedAt }) => ({ step, tx, ledger, closedAt })),
+      product: receipt.product, commerce: receipt.commerce, proofs: receipt.proofs, views: receipt.views,
+    }, null, 1));
+    console.log("   session.json written (published-on-purpose testnet session)");
+  }
   console.log("\n✅ Confidential agent commerce settled on testnet. The price never appeared on-chain.");
   console.log(`   payment tx: https://stellar.expert/explorer/testnet/tx/${pay.hash}`);
   console.log("   receipt.json written");

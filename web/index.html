@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Confidential Agent Commerce · Stellar testnet</title>
+<style>
+  :root{
+    --paper:#F2F1EC; --card:#FFFFFF; --ink:#1A1812; --muted:#6E6A5E; --line:#E4E1D5;
+    --gold:#8F7200; --good:#1E7A46; --good-soft:#E7F2EB; --lock:#5B4B8A; --lock-soft:#EFEBF7;
+    --blue:#2B5FAB;
+    --mono:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{background:var(--paper)}
+  body{font-family:var(--sans);background:var(--paper);color:var(--ink);margin:0;line-height:1.5;font-size:15px}
+  .wrap{max-width:700px;margin:0 auto;padding:36px 18px 90px}
+  .eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  h1{font-size:clamp(22px,4.5vw,30px);letter-spacing:-.02em;margin:8px 0 4px}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 18px;max-width:58ch}
+  .tabs{display:flex;gap:8px;margin:18px 0 14px}
+  .tab{font-family:var(--mono);font-size:12px;letter-spacing:.05em;padding:8px 16px;border-radius:6px;border:1px solid var(--line);background:var(--card);cursor:pointer;color:var(--ink)}
+  .tab.active{border-color:var(--gold);color:var(--gold);font-weight:600}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:22px}
+  .panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+  .panel-head b{font-size:14px}
+  button.act{font-family:var(--mono);font-size:12px;letter-spacing:.06em;padding:8px 18px;border-radius:6px;border:1px solid var(--gold);background:transparent;color:var(--gold);cursor:pointer}
+  button.act:hover:not(:disabled){background:var(--gold);color:#fff}
+  button.act:disabled{opacity:.5;cursor:default}
+  .feed{min-height:56px;max-height:330px;overflow-y:auto;padding:2px 0}
+  .msg{padding:6px 0;font-size:13.5px;border-bottom:1px dashed var(--line);animation:fadein .3s}
+  .msg:last-child{border-bottom:none}
+  .who{font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-right:8px}
+  .chainline{font-family:var(--mono);font-size:11px;color:var(--blue)}
+  .okline{font-family:var(--mono);font-size:11.5px;color:var(--good)}
+  .lockline{font-family:var(--mono);font-size:11.5px;color:var(--lock)}
+  @keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1}}
+  .note{font-size:12px;color:var(--muted);margin-top:6px}
+  .slipwrap{display:flex;justify-content:center;margin:14px 0 8px}
+  .slip{background:#FFFFFF;color:#1A1812;width:400px;max-width:96%;border-radius:6px;box-shadow:0 10px 30px rgba(0,0,0,.14);padding:26px 26px 18px;font-family:var(--mono);font-size:12px;opacity:0;transform:translateY(-14px);transition:opacity .6s,transform .6s}
+  .slip.printed{opacity:1;transform:none}
+  .slip .brand{text-align:center;letter-spacing:.18em;font-size:11px;color:#6E6A5E}
+  .slip .title{text-align:center;font-size:14px;font-weight:700;margin:6px 0 2px}
+  .slip .net{text-align:center;font-size:10px;color:#6E6A5E;letter-spacing:.12em;text-transform:uppercase}
+  .cut{border:none;border-top:1.5px dashed #CFCBBD;margin:13px 0}
+  .lr{display:flex;justify-content:space-between;gap:14px;padding:3.5px 0}
+  .lr .l{color:#6E6A5E;white-space:nowrap}
+  .lr .r{text-align:right;word-break:break-all}
+  .bigrow{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0 2px}
+  .bigrow .amt{font-size:24px;font-weight:700}
+  .lockbox{background:#EFEBF7;color:#5B4B8A;border-radius:4px;padding:7px 9px;font-size:11px;margin:8px 0}
+  .okbox{background:#E7F2EB;color:#1E7A46;border-radius:4px;padding:7px 9px;font-size:11px;margin:8px 0}
+  .thanks{text-align:center;color:#6E6A5E;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;margin-top:10px}
+  .barcode{height:34px;margin:12px 4px 2px;background:repeating-linear-gradient(90deg,#1A1812 0 2px,transparent 2px 4px,#1A1812 4px 5px,transparent 5px 9px,#1A1812 9px 12px,transparent 12px 14px);border-radius:2px}
+  .exports{display:flex;gap:10px;justify-content:center;margin:14px 0 4px;flex-wrap:wrap}
+  .exports button,.exports a{font-family:var(--mono);font-size:11.5px;padding:7px 16px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;text-decoration:none}
+  .exports button:hover,.exports a:hover{border-color:var(--gold);color:var(--gold)}
+  .foot{font-size:12px;color:var(--muted);max-width:62ch;margin-top:24px}
+  a{color:var(--gold)}
+  @media print{ body>.wrap>*{display:none!important} .slipwrap{display:flex!important} .slip{box-shadow:none;opacity:1;transform:none} body{background:#fff} }
+  @media (prefers-color-scheme: dark){
+    :root{--paper:#121110;--card:#1B1A16;--ink:#ECE9E0;--muted:#9A968A;--line:#2C2A23;--gold:#E3C35B;--blue:#7FA7E0;--good:#58C389;--lock:#A995DD}
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="eyebrow">stellar-light · agent-experiments · e6</div>
+    <h1>Confidential Agent Commerce</h1>
+    <p class="sub">Two autonomous agents completed a purchase on Stellar testnet whose price settled <b>encrypted on-chain</b>. Replay it — or make <em>your own browser</em> decrypt the balances live from the chain.</p>
+
+    <div class="tabs">
+      <button class="tab active" id="tab-sim">▶ Simulate</button>
+      <button class="tab" id="tab-live">⛓ Verify live in your browser</button>
+    </div>
+
+    <div class="panel" id="panel-sim">
+      <div class="panel-head"><b>Replay — real session, real hashes</b><button class="act" id="btn-sim">▶ RUN</button></div>
+      <div class="feed" id="feed-sim"><div class="note">Press run: the actual testnet session replays message by message, then the receipt prints.</div></div>
+    </div>
+
+    <div class="panel" id="panel-live" style="display:none">
+      <div class="panel-head"><b>The real client, in this tab</b><button class="act" id="btn-live">⛓ DECRYPT LIVE</button></div>
+      <div class="feed" id="feed-live"><div class="note">Your browser will: derive the agents' confidential keys from the published testnet session → fetch the chain's events over RPC → rebuild and <b>decrypt</b> both balances → verify them byte-for-byte against the chain's own commitments. No server. The published secrets are testnet accounts holding nothing, published deliberately (the SDK demo's own precedent).</div></div>
+    </div>
+
+    <div class="slipwrap"><div class="slip" id="slip"></div></div>
+    <div class="exports" id="exports" style="visibility:hidden">
+      <button id="btn-print">🖨 PRINT / PDF</button>
+      <button id="btn-txt">TXT</button>
+      <button id="btn-json">JSON</button>
+      <a id="link-tx" target="_blank" rel="noreferrer">VIEW TX →</a>
+    </div>
+
+    <div class="foot" id="foot"></div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

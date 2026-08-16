@@ -1,0 +1,160 @@
+{
+ "publishedOnPurpose": "testnet accounts holding nothing; secrets published so the frontend can run the real client (decrypt + verify) in the browser",
+ "network": "stellar:testnet",
+ "contracts": {
+  "token": "CBFOJTALVTO3LPZZHEXDD44K7RQKQJGAASF6XOKP5FWZD6WYKV4WN7HF",
+  "verifier": "CBXEPTSEC3433EH3TKUZSSZCIWIDMGZDY2FB7BN5IJ76A2JISQF4YTN6",
+  "auditor": "CDCPR4AURWJQRY4KXSRU7H7ABKIHTDORSQABIOUH37DU3IGYV5LRCHEK"
+ },
+ "auditorId": 0,
+ "nova": {
+  "address": "GDE76W4TRKRFTU7JREGV5ZJ4CUHPLDYFJWJE6P2JUHW3VMXDS6SLOG7T",
+  "secret": "SB4OFZIXEDMXAZED26DXUTMP4AZLLTNZ6FA46RFVU3CQ7CUMSPWDOAEU"
+ },
+ "vega": {
+  "address": "GCVDNTJA23S7DZNIWEWQLWMXBA5KA5Y6SWKMOHSMN2FIQKHHSRKV5BV5",
+  "secret": "SBBEMRWL34SFFABJGXMAQI3MINWM2ZCRLH4WEUXBBHRIA32OM7WKXCJL"
+ },
+ "fromLedger": 4175204,
+ "priceStroops": "400000000",
+ "depositStroops": "1000000000",
+ "chain": [
+  {
+   "step": "register-nova",
+   "tx": "2c6919891e7c6077490d1bf60aa6aaa98415c5485d4e49a8272f02ed7efdbe88",
+   "ledger": 4175209,
+   "closedAt": "2026-08-16T16:30:07.000Z"
+  },
+  {
+   "step": "register-vega",
+   "tx": "a877c436e5e2400b4e08541b0187c00d8671296b42c8b85dde6204537d6a02aa",
+   "ledger": 4175210,
+   "closedAt": "2026-08-16T16:30:12.000Z"
+  },
+  {
+   "step": "deposit-nova",
+   "tx": "95a619f5986b11ecdc1cd650c6623237a03d0ed57686918835351c50ac1022a7",
+   "ledger": 4175211,
+   "closedAt": "2026-08-16T16:30:17.000Z"
+  },
+  {
+   "step": "merge-nova",
+   "tx": "88391273fea3d94ccf8447ea6d87921fa76c52cf1991450d3c1b04fb0ec5b333",
+   "ledger": 4175212,
+   "closedAt": "2026-08-16T16:30:22.000Z"
+  },
+  {
+   "step": "confidential-transfer",
+   "tx": "4f295698d3280af1c0a110377bb8350eeb895cef8e87fd5e764e60d167fbdbba",
+   "ledger": 4175214,
+   "closedAt": "2026-08-16T16:30:32.000Z"
+  }
+ ],
+ "product": {
+  "body": {
+   "title": "Stellar Settlement-Currency Brief",
+   "asOf": "2026-08-16T16:30:36.088Z",
+   "source": "stellarlight.xyz/api/stablecoins",
+   "facts": [
+    {
+     "ticker": "USDY",
+     "marketCapUSD": 467500000,
+     "holders": 2708
+    },
+    {
+     "ticker": "USDC",
+     "marketCapUSD": 446580000,
+     "holders": 2333675
+    },
+    {
+     "ticker": "PYUSD",
+     "marketCapUSD": 7900000,
+     "holders": 9406
+    }
+   ]
+  },
+  "sha256": "7edac596efb95a409ec9f67ee7c0afa1843db2eaef1bdaff4ff5b892fc0b11b5",
+  "signature": "17spjATwLRmQWvhd+jKmYZrvWckNFMPjUa1a9V/bjklpiek2Z3grC9VXnbqUhw57/yglRxOfC5gQmG7pfk8qCg==",
+  "signer": "GCVDNTJA23S7DZNIWEWQLWMXBA5KA5Y6SWKMOHSMN2FIQKHHSRKV5BV5"
+ },
+ "commerce": [
+  {
+   "at": "2026-08-16T16:30:13.643Z",
+   "from": "nova",
+   "msg": "Requesting product: latest settlement-currency brief. What's your price?"
+  },
+  {
+   "at": "2026-08-16T16:30:13.643Z",
+   "from": "vega",
+   "msg": "Quote: 40 XLM, payable confidentially to GCVDNTJA… — amount will not appear on-chain.",
+   "priceStroops": "400000000"
+  },
+  {
+   "at": "2026-08-16T16:30:25.408Z",
+   "from": "nova",
+   "msg": "Paying the invoice confidentially now."
+  },
+  {
+   "at": "2026-08-16T16:30:33.853Z",
+   "from": "nova",
+   "msg": "Payment sent. tx 4f295698d328… — check your receiving balance."
+  },
+  {
+   "at": "2026-08-16T16:30:35.742Z",
+   "from": "vega",
+   "msg": "Payment verified: decrypted exactly 40 XLM received. Delivering goods."
+  },
+  {
+   "at": "2026-08-16T16:30:36.091Z",
+   "from": "vega",
+   "msg": "Delivered: \"Stellar Settlement-Currency Brief\" — sha256 7edac596efb95a40…, signed."
+  },
+  {
+   "at": "2026-08-16T16:30:36.094Z",
+   "from": "nova",
+   "msg": "Goods received; signature verified. Transaction complete."
+  }
+ ],
+ "proofs": [
+  {
+   "step": "register-nova",
+   "seconds": 1
+  },
+  {
+   "step": "register-vega",
+   "seconds": 0.9
+  },
+  {
+   "step": "confidential-transfer",
+   "seconds": 1.8
+  }
+ ],
+ "views": {
+  "public_chain": {
+   "what": "what any explorer or observer sees",
+   "vega_receiving_commitment": "188f328b0e4fe5e91a741bdb2eb63ab563f183cbd5796a3adf84c4e7804361c52d585d5e2d719c45afce80727fb109f96712eaa4f3cce3f38c0e2c1e811f6e29",
+   "nova_spendable_commitment": "22744d80d91b5112e3e5ffecc818f8c6a9fa6521d708df5e07582385d90558db0fc5e386a2806454845af21e211bc49c59e73fe655ae697b74efec321b148a1d",
+   "amount_visible": false,
+   "note": "elliptic-curve commitments only; the 40 XLM figure appears nowhere on-chain"
+  },
+  "recipient_vega": {
+   "what": "what the seller decrypts with its own derived key",
+   "decrypted_receiving_stroops": "400000000",
+   "decrypted_receiving_xlm": "40"
+  },
+  "sender_nova": {
+   "what": "what the buyer decrypts as remaining change",
+   "decrypted_spendable_stroops": "600000000",
+   "decrypted_spendable_xlm": "60",
+   "verified_against_chain": true
+  },
+  "auditor": {
+   "what": "what auditor #0 (from the on-chain registry) can decrypt",
+   "auditor_registry": "CDCPR4AURWJQRY4KXSRU7H7ABKIHTDORSQABIOUH37DU3IGYV5LRCHEK",
+   "auditor_id": 0,
+   "mechanism": "kAudR/kAudS ciphertexts are constrained into the transfer proof itself — disclosure is protocol-level, not voluntary",
+   "we_hold_this_key": false,
+   "note": "we are not auditor #0, so we cannot show the decryption — the point is that the registered auditor can, and the proof will not verify without that ciphertext"
+  }
+ }
+}

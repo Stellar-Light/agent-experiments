@@ -75,12 +75,12 @@
       <div style="text-align:right"><b class="num">40 XLM</b><div class="enc" style="color:var(--good)">what the recipient decrypted</div></div>
     </div>
     <div class="rows">
-      <div class="row"><span class="k2">From (buyer agent)</span><span class="v">NOVA · GD3L3S3YHJ2P4R7O4JY5WPAEUCSRG3UK7DQ3IIKOAEY5FNZFEAFPFD2J</span></div>
-      <div class="row"><span class="k2">To (seller agent)</span><span class="v">VEGA · GB4HKEMWPZ5BL5P2OVXQWIOGE4ILVZNZWGJIAYCKZJTIANIDAERLQGEE</span></div>
+      <div class="row"><span class="k2">From (buyer agent)</span><span class="v">PIP · GD3L3S3YHJ2P4R7O4JY5WPAEUCSRG3UK7DQ3IIKOAEY5FNZFEAFPFD2J</span></div>
+      <div class="row"><span class="k2">To (seller agent)</span><span class="v">MOMO · GB4HKEMWPZ5BL5P2OVXQWIOGE4ILVZNZWGJIAYCKZJTIANIDAERLQGEE</span></div>
       <div class="row"><span class="k2">Payment hash</span><span class="v"><a href="https://stellar.expert/explorer/testnet/tx/91a79853c7dd945948a1780c9133149776dc3a4a5fe8381c7f0f9888dffa9f89">91a79853c7dd945948a1780c9133149776dc3a4a5fe8381c7f0f9888dffa9f89</a></span></div>
       <div class="row"><span class="k2">Ledger · closed</span><span class="v num">4175083 · 2026-08-16T16:19:36Z</span></div>
       <div class="row"><span class="k2">Token</span><span class="v">XLM via OZ Confidential Token · CBFOJTALVTO3…WN7HF</span></div>
-      <div class="row"><span class="k2">Goods delivered</span><span class="v">"Stellar Settlement-Currency Brief" · sha256 16eaa288865246e9… · Ed25519-signed by VEGA · verified by NOVA</span></div>
+      <div class="row"><span class="k2">Goods delivered</span><span class="v">"Stellar Settlement-Currency Brief" · sha256 16eaa288865246e9… · Ed25519-signed by MOMO · verified by PIP</span></div>
       <div class="row"><span class="k2">End-to-end</span><span class="v num">5 transactions · ledgers 4175079→4175083 · ~20s · proofs ≤1.8s each</span></div>
     </div>
   </div>
@@ -89,14 +89,14 @@
   <div class="views">
     <div class="view"><span class="chip lock">public chain</span><h3>Any explorer, anyone</h3>
       <p class="big">🔒 no amount</p>
-      <p>The chain holds elliptic-curve commitments only. VEGA's receiving balance, as the world sees it:</p>
+      <p>The chain holds elliptic-curve commitments only. MOMO's receiving balance, as the world sees it:</p>
       <div class="commit">08326d3a0f82dbd1890114a7dac5ca41f097eb32…</div>
     </div>
-    <div class="view"><span class="chip ok">recipient</span><h3>VEGA decrypts with its derived key</h3>
+    <div class="view"><span class="chip ok">recipient</span><h3>MOMO decrypts with its derived key</h3>
       <p class="big">40 XLM</p>
       <p>Rebuilt from public chain events + its own key (derived from one signature, nothing stored). Exact match with the invoice — this is how it knew to ship the goods.</p>
     </div>
-    <div class="view"><span class="chip ok">sender</span><h3>NOVA decrypts its change</h3>
+    <div class="view"><span class="chip ok">sender</span><h3>PIP decrypts its change</h3>
       <p class="big">60 XLM</p>
       <p>Remaining spendable after the payment, re-committed locally and <strong>verified byte-for-byte against the chain's commitments</strong> — the archive can't lie.</p>
     </div>
@@ -108,19 +108,19 @@
 
   <h2>The commerce, as it happened</h2>
   <div class="card"><ul class="timeline">
-    <li><span class="who">nova</span>Requesting product: latest settlement-currency brief. What's your price?</li>
-    <li><span class="who">vega</span>Quote: 40 XLM, payable confidentially — the amount will not appear on-chain.</li>
-    <li><span class="who">nova</span>Paying the invoice confidentially now. <span class="tx">→ tx 91a79853…</span></li>
-    <li><span class="who">vega</span>Payment verified: decrypted exactly 40 XLM received. Delivering goods.</li>
-    <li><span class="who">vega</span>Delivered: signed brief (live data: USDY $467M · USDC $446M · PYUSD $7.9M).</li>
-    <li><span class="who">nova</span>Goods received; signature verified. Transaction complete.</li>
+    <li><span class="who">pip</span>Requesting product: latest settlement-currency brief. What's your price?</li>
+    <li><span class="who">momo</span>Quote: 40 XLM, payable confidentially — the amount will not appear on-chain.</li>
+    <li><span class="who">pip</span>Paying the invoice confidentially now. <span class="tx">→ tx 91a79853…</span></li>
+    <li><span class="who">momo</span>Payment verified: decrypted exactly 40 XLM received. Delivering goods.</li>
+    <li><span class="who">momo</span>Delivered: signed brief (live data: USDY $467M · USDC $446M · PYUSD $7.9M).</li>
+    <li><span class="who">pip</span>Goods received; signature verified. Transaction complete.</li>
   </ul></div>
 
   <h2>Chain trail</h2>
   <div class="card"><div class="tw"><table>
     <tr><th>step</th><th>tx</th><th>ledger</th><th>note</th></tr>
-    <tr><td>register NOVA</td><td class="tx"><a href="https://stellar.expert/explorer/testnet/tx/f375c4081ac36f8bf47361a98008bb697a7a561222aad327f5a9db4e29e0e118">f375c408…</a></td><td class="num">4175079</td><td>joins the confidential token, auditor #0 attached (proof 1.2s)</td></tr>
-    <tr><td>register VEGA</td><td class="tx"><a href="https://stellar.expert/explorer/testnet/tx/e98c0440f38b6cd372f8b32f409fc44662ed0406ef395cb1560325feca235c26">e98c0440…</a></td><td class="num">4175080</td><td>same (proof 1.0s)</td></tr>
+    <tr><td>register PIP</td><td class="tx"><a href="https://stellar.expert/explorer/testnet/tx/f375c4081ac36f8bf47361a98008bb697a7a561222aad327f5a9db4e29e0e118">f375c408…</a></td><td class="num">4175079</td><td>joins the confidential token, auditor #0 attached (proof 1.2s)</td></tr>
+    <tr><td>register MOMO</td><td class="tx"><a href="https://stellar.expert/explorer/testnet/tx/e98c0440f38b6cd372f8b32f409fc44662ed0406ef395cb1560325feca235c26">e98c0440…</a></td><td class="num">4175080</td><td>same (proof 1.0s)</td></tr>
     <tr><td>deposit</td><td class="tx"><a href="https://stellar.expert/explorer/testnet/tx/055721dc5a2a1703fd8b06981f18f8bf2e68e6ac147e9d9b329a82ac57e44a8a">055721dc…</a></td><td class="num">4175081</td><td>100 XLM enters the contract — deposits are public by design</td></tr>
     <tr><td>merge</td><td class="tx"><a href="https://stellar.expert/explorer/testnet/tx/fb6cd15eb8e5fa1194254ba8fba9d7a72eb182b933a79e462e4079c4b9e26045">fb6cd15e…</a></td><td class="num">4175082</td><td>receiving → spendable</td></tr>
     <tr><td><strong>confidential transfer</strong></td><td class="tx"><a href="https://stellar.expert/explorer/testnet/tx/91a79853c7dd945948a1780c9133149776dc3a4a5fe8381c7f0f9888dffa9f89">91a79853…</a></td><td class="num">4175083</td><td><strong>the payment — amount encrypted, auditor ciphertext embedded (proof 1.8s)</strong></td></tr>

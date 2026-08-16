@@ -11,14 +11,14 @@ import { ChainClient, hybridFetchEvents } from "stellar-confidential-token-sdk/c
 const S = JSON.parse(readFileSync("src/session.json", "utf8"));
 const client = new ChainClient({ rpcUrl: "https://soroban-testnet.stellar.org",
   networkPassphrase: "Test SDF Network ; September 2015", contracts: S.contracts });
-const kp = Keypair.fromSecret(S.vega.secret);
+const kp = Keypair.fromSecret(S.momo.secret);
 const message = skSigningMessage(S.contracts.token, kp.publicKey());
 const root = new Uint8Array(kp.signMessage(Buffer.from(message)));
 const { sk, addrF } = deriveSk(root, S.contracts.token, kp.publicKey());
 const keys = deriveKeys(sk, addrF, addressToField(kp.publicKey()));
 
 const { events } = await hybridFetchEvents(client, undefined, { fromLedger: S.fromLedger });
-const transfers = events.filter(e => e.type === "transfer" && e.to === S.vega.address);
+const transfers = events.filter(e => e.type === "transfer" && e.to === S.momo.address);
 const ev = transfers.at(-1);
 console.log("last transfer event keys:", Object.keys(ev).join(", "));
 
@@ -32,7 +32,7 @@ console.log("proved in", ((Date.now()-t0)/1000).toFixed(1) + "s; bundle keys:", 
 
 const vkJson = JSON.parse(readFileSync("public/circuits/disclose_recipient.vk.json", "utf8"));
 const pinnedVk = new Uint8Array(Buffer.from(vkJson.vkBase64, "base64"));
-const onchain = await client.confidentialBalance(S.vega.address);
+const onchain = await client.confidentialBalance(S.momo.address);
 console.log("confidentialBalance keys:", Object.keys(onchain).join(", "));
 const ctx = {
   addrF: addressToField(S.contracts.token),
@@ -41,7 +41,7 @@ const ctx = {
   vTilde: ev.vTilde ?? ev.v_tilde,
   pvkA: onchain.pvk ?? keys.PVK,
   pinnedVk,
-  disclosingAccount: S.vega.address,
+  disclosingAccount: S.momo.address,
   request, keys: examiner, prover: proverFromArtifact(circuit),
 };
 const verified = await verifyDisclosure(bundle, ctx);

@@ -17,6 +17,9 @@ import { Buffer } from "buffer";
 import SESSION from "./session.json";
 import { blobAvatar } from "./avatar";
 
+// the site redeploys often; if an old tab's lazy chunk 404s, reload once
+window.addEventListener("vite:preloadError", () => window.location.reload());
+
 const $ = (id: string) => document.getElementById(id)!;
 const STROOP = 10_000_000n;
 const RPC = "https://soroban-testnet.stellar.org";
@@ -24,20 +27,20 @@ const PASSPHRASE = "Test SDF Network ; September 2015";
 
 // ── chat rendering ──────────────────────────────────────────────────────────
 let lastSide = "";
-function ensureName(side: "nova" | "vega") {
+function ensureName(side: "pip" | "momo") {
   if (lastSide === side) return;
   lastSide = side;
   const n = document.createElement("div");
-  n.className = `name ${side === "nova" ? "nova" : ""}`;
-  n.style.textAlign = side === "nova" ? "right" : "left";
-  const who = side === "nova" ? SESSION.nova.address : SESSION.vega.address;
+  n.className = `name ${side === "pip" ? "pip" : ""}`;
+  n.style.textAlign = side === "pip" ? "right" : "left";
+  const who = side === "pip" ? SESSION.pip.address : SESSION.momo.address;
   const face = `<img src="${blobAvatar(who)}" width="20" height="20" style="vertical-align:-5px;border-radius:50%">`;
-  n.innerHTML = side === "nova"
+  n.innerHTML = side === "pip"
     ? `${agentName("pip")} (buyer) <span style="margin-left:5px">${face}</span>`
     : `<span style="margin-right:5px">${face}</span> ${agentName("momo")} (seller)`;
   $("chat").appendChild(n);
 }
-function bubble(side: "nova" | "vega", text: string) {
+function bubble(side: "pip" | "momo", text: string) {
   ensureName(side);
   const row = document.createElement("div");
   row.className = `row ${side}`;
@@ -52,7 +55,7 @@ function sys(text: string, cls = "") {
   $("chat").appendChild(row);
   row.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
-function typing(side: "nova" | "vega", label: string) {
+function typing(side: "pip" | "momo", label: string) {
   ensureName(side);
   const row = document.createElement("div");
   row.className = `row ${side} typing`;
@@ -119,17 +122,17 @@ async function run() {
     const bytesVal = (b: Uint8Array) => xdr.ScVal.scvBytes(Buffer.from(b));
 
     const client = new ChainClient({ rpcUrl: RPC, networkPassphrase: PASSPHRASE, contracts: SESSION.contracts });
-    const novaKp = Keypair.fromSecret(SESSION.nova.secret);
-    const vegaKp = Keypair.fromSecret(SESSION.vega.secret);
+    const pipKp = Keypair.fromSecret(SESSION.pip.secret);
+    const momoKp = Keypair.fromSecret(SESSION.momo.secret);
     const ident = (kp: any) => {
       const message = skSigningMessage(SESSION.contracts.token, kp.publicKey());
       const root = new Uint8Array(kp.signMessage(Buffer.from(message)));
       const { sk, addrF } = deriveSk(root, SESSION.contracts.token, kp.publicKey());
       return { keys: deriveKeys(sk, addrF, addressToField(kp.publicKey())), address: kp.publicKey() };
     };
-    const nova = ident(novaKp);
-    const vega = ident(vegaKp);
-    const novaSigner = keypairSigner(novaKp.secret(), PASSPHRASE);
+    const pip = ident(pipKp);
+    const momo = ident(momoKp);
+    const pipSigner = keypairSigner(pipKp.secret(), PASSPHRASE);
 
     const mine = (address: string, events: any[]) => events.filter((ev) =>
       ev.type === "register" || ev.type === "merge" ? ev.account === address : ev.from === address || ev.to === address);
@@ -169,40 +172,48 @@ async function run() {
     }
     const priceXlm = (Number(price) / 1e7).toString();
 
-    bubble("nova", "Need the settlement brief. What's your price today?");
+    status("requesting the gated API");
+    try {
+      const gate = await fetch("/api/brief");
+      if (gate.status === 402) {
+        const g = await gate.json();
+        sys(`HTTP 402 Payment Required from /api/brief. payTo ${String(g.payTo).slice(0, 6)}…, settlement: confidential`);
+      }
+    } catch {}
+    bubble("pip", "The brief API wants payment. What's your price today?");
     await wait(700);
-    let t = typing("vega", "checking books");
+    let t = typing("momo", "checking books");
     await wait(900); t();
-    bubble("vega", `${priceXlm} XLM. Pay it confidentially, the amount stays between us and the auditor.`);
+    bubble("momo", `${priceXlm} XLM. Pay it confidentially, the amount stays between us and the auditor.`);
     await wait(500);
 
     // funds check + top-up if needed (real transactions, no proof required)
     status("checking balance…");
-    let novaEngine = await rebuild(nova);
-    let spendable = novaEngine.state().spendable;
+    let pipEngine = await rebuild(pip);
+    let spendable = pipEngine.state().spendable;
     if (spendable.v < price + 2n * STROOP) {
       const topup = price + 100n * STROOP;
       sys(`buyer balance low, depositing ${(Number(topup) / 1e7).toString()} XLM into the contract (deposits are public by design)`);
       const dep = await client.invoke(SESSION.contracts.token, "deposit",
-        [addr(nova.address), addr(nova.address), i128(topup)], novaSigner);
+        [addr(pip.address), addr(pip.address), i128(topup)], pipSigner);
       sys(`deposit tx ${dep.hash.slice(0, 10)}…`);
-      const mrg = await client.invoke(SESSION.contracts.token, "merge", [addr(nova.address)], novaSigner);
+      const mrg = await client.invoke(SESSION.contracts.token, "merge", [addr(pip.address)], pipSigner);
       sys(`merge tx ${mrg.hash.slice(0, 10)}…`);
-      novaEngine = await rebuild(nova);
-      spendable = novaEngine.state().spendable;
+      pipEngine = await rebuild(pip);
+      spendable = pipEngine.state().spendable;
     }
 
-    // vega's receiving total BEFORE, so the decrypted delta is provable
-    const vegaBefore = BigInt((await rebuild(vega)).receiving().v);
+    // momo's receiving total BEFORE, so the decrypted delta is provable
+    const momoBefore = BigInt((await rebuild(momo)).receiving().v);
 
-    bubble("nova", "Paying now.");
-    t = typing("nova", "generating zero-knowledge proof in this tab…");
+    bubble("pip", "Paying now.");
+    t = typing("pip", "generating zero-knowledge proof in this tab…");
     status("proving…");
     const kAud = await client.auditorKey(SESSION.auditorId);
     const t0 = performance.now();
     const witness = buildTransferWitness({
-      keys: nova.keys, v: spendable.v, r: spendable.r, amount: price,
-      pvkB: vega.keys.PVK, kAudR: kAud, kAudS: kAud,
+      keys: pip.keys, v: spendable.v, r: spendable.r, amount: price,
+      pvkB: momo.keys.PVK, kAudR: kAud, kAudS: kAud,
     });
     const prover = proverFromArtifact(circuit);
     const { proof } = await prover.prove(witness.inputs);
@@ -212,33 +223,49 @@ async function run() {
     t();
     sys(`proof generated in this browser in ${proveSecs}s`, "good");
 
-    t = typing("nova", "submitting to testnet…");
+    t = typing("pip", "submitting to testnet…");
     status("submitting…");
     const pay = await client.invoke(SESSION.contracts.token, "confidential_transfer",
-      [addr(nova.address), addr(vega.address), bytesVal(payload)], novaSigner);
+      [addr(pip.address), addr(momo.address), bytesVal(payload)], pipSigner);
     t();
     sys(`confidential transfer settled <a href="https://stellar.expert/explorer/testnet/tx/${pay.hash}" target="_blank" rel="noreferrer">${pay.hash.slice(0, 16)}…</a> (the amount is not in that transaction)`, "good");
-    bubble("nova", "Sent. Check your side.");
+    bubble("pip", "Sent. Check your side.");
 
     await wait(400);
-    t = typing("vega", "replaying chain events · decrypting receiving balance…");
+    t = typing("momo", "replaying chain events · decrypting receiving balance…");
     status("seller decrypting…");
-    const vegaAfter = BigInt((await rebuild(vega)).receiving().v);
-    const delta = vegaAfter - vegaBefore;
+    const momoAfter = BigInt((await rebuild(momo)).receiving().v);
+    const delta = momoAfter - momoBefore;
     t();
     if (delta !== price) throw new Error(`seller decrypted ${delta} stroops, expected ${price}`);
-    bubble("vega", `Confirmed. Decrypted exactly +${priceXlm} XLM. Nobody else can read that number. Shipping the brief.`);
+    bubble("momo", `Confirmed. Decrypted exactly +${priceXlm} XLM. Only we and the auditor can read that number here.`);
+    t = typing("momo", "releasing the brief through the 402 gate");
+    let served: any = null;
+    try {
+      const resp = await fetch(`/api/brief?tx=${pay.hash}`);
+      if (resp.ok) served = await resp.json();
+    } catch {}
+    t();
+    if (served?.paid) {
+      const sigOk = momoKp.verify(
+        (await import("@stellar/stellar-sdk")).hash(Buffer.from(JSON.stringify(served.brief))),
+        Buffer.from(served.signature, "base64"));
+      sys(`the API verified the payment from the envelope alone and served the brief, sha256 ${String(served.sha256).slice(0, 12)}…, signature ${sigOk ? "verified" : "FAILED"}`, sigOk ? "good" : "");
+      bubble("momo", `Delivered via the API: "${served.brief.title}".`);
+    } else {
+      bubble("momo", "Delivered.");
+    }
 
     // chain verification of the buyer's own state
-    const after = await rebuild(nova);
-    const onchain = await client.confidentialBalance(nova.address);
+    const after = await rebuild(pip);
+    const onchain = await client.confidentialBalance(pip.address);
     const check = after.verifyAgainstChain({
       spendableC: pointToBytes(onchain.spendableBalance),
       receivingC: pointToBytes(onchain.receivingBalance),
     });
     sys(check.ok ? "buyer state verified byte-for-byte against on-chain commitments" : "verify mismatch", check.ok ? "good" : "");
     await wait(300);
-    bubble("nova", "Received. Good doing business.");
+    bubble("pip", "Received. Good doing business.");
     status("");
 
     // the receipt, with the actual fee charged
@@ -253,16 +280,22 @@ async function run() {
 
     // live panels: chain view vs decrypted view + history
     try {
-      const vegaOn = await client.confidentialBalance(vega.address);
-      $("nova-commit").textContent = Buffer.from(pointToBytes(onchain.spendableBalance)).toString("hex").slice(0, 48) + "…";
-      $("vega-commit").textContent = Buffer.from(pointToBytes(vegaOn.receivingBalance)).toString("hex").slice(0, 48) + "…";
-      $("nova-dec").textContent = (Number(after.state().spendable.v) / 1e7).toString() + " XLM spendable";
-      $("vega-dec").textContent = (Number(vegaAfter) / 1e7).toString() + " XLM received (total)";
+      const vegaOn = await client.confidentialBalance(momo.address);
+      $("pip-commit").textContent = Buffer.from(pointToBytes(onchain.spendableBalance)).toString("hex").slice(0, 48) + "…";
+      $("momo-commit").textContent = Buffer.from(pointToBytes(vegaOn.receivingBalance)).toString("hex").slice(0, 48) + "…";
+      $("pip-dec").textContent = (Number(after.state().spendable.v) / 1e7).toString() + " XLM spendable";
+      $("momo-dec").textContent = (Number(momoAfter) / 1e7).toString() + " XLM received (total)";
       ($("balances") as HTMLElement).style.display = "";
     } catch {}
     pushHistory({ tx: pay.hash, amt: priceXlm, at: new Date().toISOString().slice(0, 16).replace("T", " ") });
   } catch (e: any) {
-    const msg = document.createTextNode(String(e?.message || e?.name || e || "unknown")).textContent!.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]!));
+    const raw = String(e?.message || e?.name || e || "unknown");
+    if (raw.includes("dynamically imported module")) {
+      sys("the site was updated while this tab was open; reloading the new version");
+      setTimeout(() => window.location.reload(), 1200);
+      return;
+    }
+    const msg = raw.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]!));
     sys(`error: ${msg}. If two people run this at once the balance state races; try again`, "");
     status("");
   } finally {
@@ -282,8 +315,8 @@ function receipt(tx: string, priceXlm: string, changeXlm: string, feeXlm = "") {
     <div class="t2">stellar testnet, confidential transfer</div>
     <hr class="cut">
     <div class="lr"><span class="l">DATE</span><span class="r">${dt}</span></div>
-    <div class="lr"><span class="l">FROM</span><span class="r">${agentName("pip")} <a href="https://stellar.expert/explorer/testnet/account/${SESSION.nova.address}" target="_blank" rel="noreferrer">${SESSION.nova.address.slice(0, 6)}…${SESSION.nova.address.slice(-4)}</a></span></div>
-    <div class="lr"><span class="l">TO</span><span class="r">${agentName("momo")} <a href="https://stellar.expert/explorer/testnet/account/${SESSION.vega.address}" target="_blank" rel="noreferrer">${SESSION.vega.address.slice(0, 6)}…${SESSION.vega.address.slice(-4)}</a></span></div>
+    <div class="lr"><span class="l">FROM</span><span class="r">${agentName("pip")} <a href="https://stellar.expert/explorer/testnet/account/${SESSION.pip.address}" target="_blank" rel="noreferrer">${SESSION.pip.address.slice(0, 6)}…${SESSION.pip.address.slice(-4)}</a></span></div>
+    <div class="lr"><span class="l">TO</span><span class="r">${agentName("momo")} <a href="https://stellar.expert/explorer/testnet/account/${SESSION.momo.address}" target="_blank" rel="noreferrer">${SESSION.momo.address.slice(0, 6)}…${SESSION.momo.address.slice(-4)}</a></span></div>
     <hr class="cut">
     <div class="bigrow"><span>AMOUNT ON-CHAIN</span><span class="amt">ENCRYPTED</span></div>
     <div class="decr">SELLER DECRYPTED: +${priceXlm} XLM (exact match)<br>BUYER CHANGE: ${changeXlm} XLM, chain-verified</div>
@@ -309,8 +342,8 @@ function receipt(tx: string, priceXlm: string, changeXlm: string, feeXlm = "") {
   ($("b-tx") as HTMLAnchorElement).href = `https://stellar.expert/explorer/testnet/tx/${tx}`;
   lastTxt = `PAYMENT RECEIPT - stellar testnet, confidential transfer
 ${dt}
-FROM ${agentName("pip")} ${SESSION.nova.address}
-TO   ${agentName("momo")} ${SESSION.vega.address}
+FROM ${agentName("pip")} ${SESSION.pip.address}
+TO   ${agentName("momo")} ${SESSION.momo.address}
 AMOUNT ON-CHAIN: ENCRYPTED
 seller decrypted: +${priceXlm} XLM (exact match)
 buyer change: ${changeXlm} XLM, chain-verified
@@ -351,15 +384,15 @@ function renderIdentity() {
     <div class="idcard"><img src="${blobAvatar(addr, 40)}" width="40" height="40" alt="">
       <div><div class="idname" data-agent="${key}">${agentName(key)}</div><div class="idrole">${role}</div>
       <a class="idaddr" href="https://stellar.expert/explorer/testnet/account/${addr}" target="_blank" rel="noreferrer">${addr.slice(0, 6)}…${addr.slice(-4)}</a></div></div>`;
-  strip.innerHTML = card(SESSION.nova.address, "pip", "autonomous buyer, pays confidentially") +
-    card(SESSION.vega.address, "momo", "autonomous seller, verifies by decryption");
+  strip.innerHTML = card(SESSION.pip.address, "pip", "autonomous buyer, pays confidentially") +
+    card(SESSION.momo.address, "momo", "autonomous seller, verifies by decryption");
 }
 renderIdentity();
-const ln = $("l-nova") as HTMLAnchorElement, lv = $("l-vega") as HTMLAnchorElement;
-ln.href = `https://stellar.expert/explorer/testnet/account/${SESSION.nova.address}`;
-ln.textContent = SESSION.nova.address;
-lv.href = `https://stellar.expert/explorer/testnet/account/${SESSION.vega.address}`;
-lv.textContent = SESSION.vega.address;
+const ln = $("l-pip") as HTMLAnchorElement, lv = $("l-momo") as HTMLAnchorElement;
+ln.href = `https://stellar.expert/explorer/testnet/account/${SESSION.pip.address}`;
+ln.textContent = SESSION.pip.address;
+lv.href = `https://stellar.expert/explorer/testnet/account/${SESSION.momo.address}`;
+lv.textContent = SESSION.momo.address;
 
 $("run").addEventListener("click", run);
 $("b-print").addEventListener("click", () => window.print());

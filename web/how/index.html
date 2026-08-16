@@ -13,7 +13,7 @@
     <a class="home" href="/">Confidential Agent Commerce</a>
     <a href="/">run it</a>
     <a class="here" href="/how/">how it works</a>
-    <a class="right" href="https://github.com/Stellar-Light/agent-experiments">github</a>
+    <a class="right" href="https://github.com/Stellar-Light/confidential-agent-commerce">github</a>
   </nav>
 
   <div class="eyebrow">the mechanics</div>
@@ -83,7 +83,7 @@ const keys    = deriveKeys(sk, ...);               // vk, PVK, deterministic, no
      │ ◀────────────────────────────────│
      │  verify signature ✓              │
      │  deal complete                   │</div>
-  <p>Every message in that diagram happened and is logged; every ⛓ step has a transaction hash in the <a href="https://github.com/Stellar-Light/agent-experiments/tree/main/agents">receipt</a>, with envelope XDRs archived so the evidence outlives testnet resets.</p>
+  <p>Every message in that diagram happened and is logged; every ⛓ step has a transaction hash in the <a href="https://github.com/Stellar-Light/confidential-agent-commerce/tree/main/agents">receipt</a>, with envelope XDRs archived so the evidence outlives testnet resets.</p>
 
   <h2>8 · Who sees what, precisely</h2>
   <div class="tw"><table>
@@ -103,8 +103,8 @@ const keys    = deriveKeys(sk, ...);               // vk, PVK, deterministic, no
   </ul>
 
   <h2>10 · Reproduce it</h2>
-  <pre><code>git clone https://github.com/Stellar-Light/agent-experiments
-cd agent-experiments/agents
+  <pre><code>git clone https://github.com/Stellar-Light/confidential-agent-commerce
+cd confidential-agent-commerce/agents
 npm install
 node agents-commerce.mjs   # fresh agents, fresh receipts, ~60s</code></pre>
   <p>Fresh keypairs are generated and friendbot-funded at runtime. The run prints every transaction hash and writes <span class="k">receipt.json</span> with the four views and archived XDRs.</p>
@@ -113,7 +113,7 @@ node agents-commerce.mjs   # fresh agents, fresh receipts, ~60s</code></pre>
   <ul>
     <li>OpenZeppelin Confidential Tokens, <a href="https://github.com/OpenZeppelin/stellar-contracts">contracts</a> (confidential package: design docs, circuits, auditor example)</li>
     <li>aguilar1x, <a href="https://github.com/aguilar1x/stellar-confidential-token-sdk">stellar-confidential-token-sdk</a> and its <a href="https://stellar-confidential-token-sdk-web.vercel.app/">site</a> (SDK.md, INDEXER.md, the defect writeups this page references)</li>
-    <li>This experiment, <a href="https://github.com/Stellar-Light/agent-experiments">agent-experiments</a>: the commerce script, receipts, and the AI-copilot build log</li>
+    <li>This experiment, <a href="https://github.com/Stellar-Light/confidential-agent-commerce">agent-experiments</a>: the commerce script, receipts, and the AI-copilot build log</li>
   </ul>
 
   <div class="foot">

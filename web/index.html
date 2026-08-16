@@ -17,12 +17,12 @@
 <style>
   :root{
     --bg:#F7F7F8; --card:#FFFFFF; --ink:#111114; --sub:#71717A; --line:#E7E7EA;
-    --nova:#0A84FF; --vega:#E9E9EB; --vega-ink:#111114; --ok:#1DA860;
+    --pip:#0A84FF; --momo:#E9E9EB; --momo-ink:#111114; --ok:#1DA860;
     --mono:ui-monospace,'SF Mono',SFMono-Regular,Menlo,monospace;
     --sans:ui-rounded,'SF Pro Rounded',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   }
   @media (prefers-color-scheme: dark){
-    :root{ --bg:#0E0E10; --card:#17171A; --ink:#F2F2F3; --sub:#8E8E95; --line:#26262B; --vega:#26262B; --vega-ink:#F2F2F3; }
+    :root{ --bg:#0E0E10; --card:#17171A; --ink:#F2F2F3; --sub:#8E8E95; --line:#26262B; --momo:#26262B; --momo-ink:#F2F2F3; }
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   button,select,a{touch-action:manipulation;-webkit-user-select:none;user-select:none}
@@ -36,13 +36,13 @@
   .runbar{display:flex;align-items:center;gap:10px;margin:22px 0 8px;flex-wrap:wrap}
   button.run{font-family:var(--sans);font-size:14.5px;font-weight:600;padding:11px 22px;border-radius:999px;border:none;background:var(--ink);color:var(--bg);cursor:pointer;white-space:nowrap}
   button.run:disabled{opacity:.45;cursor:default}
-  #amt{font-family:var(--mono);font-size:13px;padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);width:230px;max-width:45vw}
-  #amt:focus{outline:none;border-color:var(--ink)}
+  #amt{font-family:var(--sans);font-size:14px;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);width:230px;max-width:45vw;transition:border-color .15s,box-shadow .15s}
+  #amt:focus{outline:none;border-color:var(--sub);box-shadow:0 0 0 3px color-mix(in srgb, var(--ink) 10%, transparent)}
   .selwrap{position:relative}
   .selwrap::after{content:"";position:absolute;right:12px;top:50%;width:7px;height:7px;border-right:1.5px solid var(--sub);border-bottom:1.5px solid var(--sub);transform:translateY(-70%) rotate(45deg);pointer-events:none}
-  #denom{-webkit-appearance:none;appearance:none;font-family:var(--mono);font-size:13px;padding:10px 30px 10px 13px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+  #denom{-webkit-appearance:none;appearance:none;font-family:var(--sans);font-size:14px;font-weight:500;padding:10px 30px 10px 14px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;transition:border-color .15s,box-shadow .15s}
   @media (hover: hover) and (pointer: fine){ #denom:hover{border-color:var(--sub)} }
-  #denom:focus{outline:2px solid var(--ink);outline-offset:1px;border-color:var(--ink)}
+  #denom:focus{outline:none;border-color:var(--sub);box-shadow:0 0 0 3px color-mix(in srgb, var(--ink) 10%, transparent)}
   
   pre.byo{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow-x:auto;font-family:var(--mono);font-size:11.5px;line-height:1.7;margin:8px 0 0}
   .panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:16px 0}
@@ -71,15 +71,15 @@
   .chat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 14px;min-height:120px;margin:14px 0;overscroll-behavior:contain}
   .empty{color:var(--sub);font-size:13.5px;text-align:center;padding:26px 10px}
   .row{display:flex;margin:3px 0;animation:pop .25s ease}
-  .row.nova{justify-content:flex-end}
+  .row.pip{justify-content:flex-end}
   .row.sys{justify-content:center}
   @keyframes pop{from{opacity:0;transform:translateY(5px)}to{opacity:1}}
   .name{font-size:10.5px;color:var(--sub);margin:10px 12px 2px;letter-spacing:.02em}
   .nrow{display:flex}
-  .nrow.nova{justify-content:flex-end}
+  .nrow.pip{justify-content:flex-end}
   .bubble{max-width:78%;padding:8px 13px;border-radius:18px;font-size:14.5px;line-height:1.4;word-wrap:break-word}
-  .vega .bubble{background:var(--vega);color:var(--vega-ink);border-bottom-left-radius:5px}
-  .nova .bubble{background:var(--nova);color:#fff;border-bottom-right-radius:5px}
+  .momo .bubble{background:var(--momo);color:var(--momo-ink);border-bottom-left-radius:5px}
+  .pip .bubble{background:var(--pip);color:#fff;border-bottom-right-radius:5px}
   .sys .s{font-family:var(--mono);font-size:11px;color:color-mix(in srgb, var(--ink) 62%, var(--sub));padding:5px 12px;margin:4px 0;text-align:center;max-width:88%;word-break:normal;overflow-wrap:anywhere;text-wrap:balance;background:color-mix(in srgb, var(--line) 45%, transparent);border-radius:999px;line-height:1.6}
   .sys .s a{color:var(--sub);text-decoration:underline;text-underline-offset:2px}
 
@@ -88,7 +88,7 @@
   .dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
   @keyframes blink{0%,100%{opacity:.25}50%{opacity:.85}}
   .tlabel{font-family:var(--mono);font-size:10px;color:var(--sub);margin:2px 12px}
-  .tlabel.nova{text-align:right}
+  .tlabel.pip{text-align:right}
 
   .slipwrap{display:flex;justify-content:center;margin:20px 0 4px}
   .slip{background:#fff;color:#111;width:400px;max-width:100%;border-radius:10px;border:1px solid #E5E5E8;
@@ -132,7 +132,8 @@
 <div class="wrap">
   <header>
     <h1>Confidential Agent Commerce</h1>
-    <p class="sub">Two autonomous agents transact on Stellar testnet. The amount settles encrypted on-chain. The seller confirms payment by decrypting it, a registered auditor can always read it, everyone else sees nothing.</p>
+    <p class="sub">Two agents transact on Stellar testnet. The amount settles encrypted on-chain. The seller confirms payment by decrypting it, a registered auditor can always read it, everyone else sees nothing.</p>
+    <p class="sub" style="font-size:12px;margin-top:8px">Demo keys are published on purpose (testnet, worthless): anyone can decrypt this demo's own amounts. The protocol hides amounts from anyone without keys.</p>
     <div class="runbar">
       <div class="selwrap"><select id="denom" aria-label="currency"><option value="xlm">XLM</option><option value="usd">USD, oracle to XLM</option></select></div>
       <input id="amt" inputmode="decimal" placeholder="amount (blank = random)" autocomplete="off" aria-label="payment amount">
@@ -155,8 +156,8 @@
   <div class="panel" id="balances" style="display:none">
     <h2>The chain's view vs the agents' view, live</h2>
     <div class="bal">
-      <div class="cell"><div class="who">Pip, buyer</div><div>chain holds:</div><div class="commit" id="nova-commit"></div><div>Pip decrypts:</div><div class="dec" id="nova-dec"></div></div>
-      <div class="cell"><div class="who">Momo, seller</div><div>chain holds:</div><div class="commit" id="vega-commit"></div><div>Momo decrypts:</div><div class="dec" id="vega-dec"></div></div>
+      <div class="cell"><div class="who">Pip, buyer</div><div>chain holds:</div><div class="commit" id="pip-commit"></div><div>Pip decrypts:</div><div class="dec" id="pip-dec"></div></div>
+      <div class="cell"><div class="who">Momo, seller</div><div>chain holds:</div><div class="commit" id="momo-commit"></div><div>Momo decrypts:</div><div class="dec" id="momo-dec"></div></div>
     </div>
   </div>
 
@@ -170,22 +171,22 @@
     <div class="links">
       token contract: <a href="https://stellar.expert/explorer/testnet/contract/CBFOJTALVTO3LPZZHEXDD44K7RQKQJGAASF6XOKP5FWZD6WYKV4WN7HF" target="_blank" rel="noreferrer">CBFOJTAL…WN7HF</a><br>
       proof verifier: <a href="https://stellar.expert/explorer/testnet/contract/CBXEPTSEC3433EH3TKUZSSZCIWIDMGZDY2FB7BN5IJ76A2JISQF4YTN6" target="_blank" rel="noreferrer">CBXEPTSE…YTN6</a> · auditor registry: <a href="https://stellar.expert/explorer/testnet/contract/CDCPR4AURWJQRY4KXSRU7H7ABKIHTDORSQABIOUH37DU3IGYV5LRCHEK" target="_blank" rel="noreferrer">CDCPR4AU…CHEK</a><br>
-      buyer account: <a id="l-nova" target="_blank" rel="noreferrer"></a><br>
-      seller account: <a id="l-vega" target="_blank" rel="noreferrer"></a>
+      buyer account: <a id="l-pip" target="_blank" rel="noreferrer"></a><br>
+      seller account: <a id="l-momo" target="_blank" rel="noreferrer"></a>
     </div>
   </div>
 
   <div class="panel">
     <h2>Bring your own agent</h2>
     <div style="font-size:13px;color:var(--sub)">Any environment can join. Your agent gets a persistent identity, its own face, and pays the seller here confidentially. When it does, the seller's decrypted total on this page includes your payment.</div>
-    <pre class="byo">git clone https://github.com/Stellar-Light/agent-experiments
-cd agent-experiments/agents
+    <pre class="byo">git clone https://github.com/Stellar-Light/confidential-agent-commerce
+cd confidential-agent-commerce/agents
 npm install
 node join.mjs --name YourAgent --amount 2</pre>
   </div>
 
   <footer>
-    <a href="/how/">How it works</a> · <a href="https://github.com/Stellar-Light/agent-experiments">Source</a><br>
+    <a href="/how/">How it works</a> · <a href="https://github.com/Stellar-Light/confidential-agent-commerce">Source</a><br>
     Built on <a href="https://github.com/OpenZeppelin/stellar-contracts">OpenZeppelin Confidential Tokens</a> and <a href="https://github.com/aguilar1x/stellar-confidential-token-sdk">stellar-confidential-token-sdk</a>. Testnet only; the client SDK is unaudited, do not hold value with it. Session keys are published testnet keys holding nothing.
   </footer>
 </div>

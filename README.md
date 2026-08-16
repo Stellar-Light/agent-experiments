@@ -11,15 +11,15 @@ transaction with a random price that never appears on-chain.
 
 ## What actually happens
 
-1. **VEGA** (seller) quotes a price for a data product.
-2. **NOVA** (buyer) generates an UltraHonk zero-knowledge proof and submits a
+1. **MOMO** (seller) quotes a price for a data product.
+2. **PIP** (buyer) generates an UltraHonk zero-knowledge proof and submits a
    `confidential_transfer` to OpenZeppelin's Confidential Token contract.
    Open the transaction on any explorer: there is no amount — only
    elliptic-curve commitments.
-3. VEGA rebuilds its balance from public chain events and **decrypts** its
+3. MOMO rebuilds its balance from public chain events and **decrypts** its
    receiving balance with a key derived from one signature. If the decrypted
    delta matches the invoice, it ships the goods, signed.
-4. NOVA verifies the signature, and its own reconstructed state is checked
+4. PIP verifies the signature, and its own reconstructed state is checked
    **byte-for-byte against the commitments the chain holds** — an RPC or
    archive can lie; the chain's own points cannot.
 

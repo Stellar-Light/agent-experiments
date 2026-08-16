@@ -51,7 +51,7 @@ for (const c of CASES) {
 }
 // balances as stored: getLedgerEntries for the two accounts' balance keys is contract-internal;
 // use the public simulate-read the site uses instead: confirmed elsewhere. Record the classic balances:
-for (const [name, a] of [["nova", S.nova.address], ["vega", S.vega.address]]) {
+for (const [name, a] of [["pip", S.pip.address], ["momo", S.momo.address]]) {
   const r = await fetch(`https://horizon-testnet.stellar.org/accounts/${a}`).then(r => r.json());
   const xlm = r.balances?.find(b => b.asset_type === "native")?.balance;
   out[name + "_classic_xlm"] = xlm; // classic balance only moves on deposit/fees — per-payment amounts never touch it
@@ -62,4 +62,4 @@ for (const c of out.cases) {
   for (const op of c.ops) console.log(`   op: ${op.function ?? op.type}(${(op.argTypes ?? []).join(", ")}) args: ${(op.args ?? []).join(" | ")}`);
   console.log(`   amount ${c.amountSearch.stroops} stroops in envelope? ${c.amountSearch.verdict}`);
 }
-console.log(`\nclassic XLM — nova: ${out.nova_classic_xlm} · vega: ${out.vega_classic_xlm} (per-payment amounts never appear here)`);
+console.log(`\nclassic XLM — pip: ${out.nova_classic_xlm} · momo: ${out.vega_classic_xlm} (per-payment amounts never appear here)`);

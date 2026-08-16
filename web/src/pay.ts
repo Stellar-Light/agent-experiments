@@ -15,6 +15,7 @@ import { Buffer } from "buffer";
 (globalThis as any).Buffer = Buffer;
 
 import SESSION from "./session.json";
+import { blobAvatar } from "./avatar";
 
 const $ = (id: string) => document.getElementById(id)!;
 const STROOP = 10_000_000n;
@@ -29,7 +30,9 @@ function ensureName(side: "nova" | "vega") {
   const n = document.createElement("div");
   n.className = `name ${side === "nova" ? "nova" : ""}`;
   n.style.textAlign = side === "nova" ? "right" : "left";
-  n.textContent = side === "nova" ? "NOVA · buyer" : "VEGA · seller";
+  const who = side === "nova" ? SESSION.nova.address : SESSION.vega.address;
+  n.innerHTML = `<img src="${blobAvatar(who)}" width="20" height="20" style="vertical-align:-5px;margin:0 5px 0 0;border-radius:50%"> ${side === "nova" ? "NOVA · buyer" : "VEGA · seller"}`;
+  if (side === "nova") { n.innerHTML = `${side === "nova" ? "NOVA · buyer" : ""} <img src="${blobAvatar(who)}" width="20" height="20" style="vertical-align:-5px;margin:0 0 0 5px;border-radius:50%">`; }
   $("chat").appendChild(n);
 }
 function bubble(side: "nova" | "vega", text: string) {
@@ -278,6 +281,16 @@ function pushHistory(r: Run) {
   renderHistory();
 }
 renderHistory();
+// identity strip
+const strip = document.getElementById("idstrip");
+if (strip) {
+  const card = (addr: string, name: string, role: string) => `
+    <div class="idcard"><img src="${blobAvatar(addr, 40)}" width="40" height="40" alt="">
+      <div><div class="idname">${name}</div><div class="idrole">${role}</div>
+      <a class="idaddr" href="https://stellar.expert/explorer/testnet/account/${addr}" target="_blank" rel="noreferrer">${addr.slice(0, 6)}…${addr.slice(-4)}</a></div></div>`;
+  strip.innerHTML = card(SESSION.nova.address, "NOVA", "autonomous buyer · pays confidentially") +
+    card(SESSION.vega.address, "VEGA", "autonomous seller · verifies by decryption");
+}
 const ln = $("l-nova") as HTMLAnchorElement, lv = $("l-vega") as HTMLAnchorElement;
 ln.href = `https://stellar.expert/explorer/testnet/account/${SESSION.nova.address}`;
 ln.textContent = SESSION.nova.address;

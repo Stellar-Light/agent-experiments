@@ -41,6 +41,13 @@
   .links{font-family:var(--mono);font-size:11px;line-height:2;color:var(--sub)}
   .links a{color:var(--sub)}
   .status{font-family:var(--mono);font-size:11.5px;color:var(--sub)}
+  .idstrip{display:flex;gap:12px;margin:16px 0 0;flex-wrap:wrap}
+  .idcard{display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;flex:1;min-width:200px}
+  .idcard img{border-radius:50%}
+  .idname{font-weight:650;font-size:13.5px}
+  .idrole{font-size:11px;color:var(--sub)}
+  .idaddr{font-family:var(--mono);font-size:10px;color:var(--sub);text-decoration:none}
+  .idaddr:hover{color:var(--ink)}
 
   .chat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 14px;min-height:120px;margin:14px 0}
   .empty{color:var(--sub);font-size:13.5px;text-align:center;padding:26px 10px}
@@ -96,6 +103,8 @@
       <span class="status" id="status"></span>
     </div>
   </header>
+
+  <div class="idstrip" id="idstrip"></div>
 
   <div class="chat" id="chat"><div class="empty">Press run. This is not a simulation — a new payment is negotiated, proven, and settled on testnet while you watch. Takes ~20 seconds.</div></div>
 

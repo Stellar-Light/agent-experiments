@@ -27,6 +27,10 @@
   button.run:disabled{opacity:.45;cursor:default}
   #amt{font-family:var(--mono);font-size:13px;padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);width:230px;max-width:45vw}
   #amt:focus{outline:none;border-color:var(--ink)}
+  #denom{font-family:var(--mono);font-size:13px;padding:10px 10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+  .idname[data-agent]{cursor:pointer}
+  .idname[data-agent]:hover::after{content:" ✎";color:var(--sub);font-size:11px}
+  pre.byo{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow-x:auto;font-family:var(--mono);font-size:11.5px;line-height:1.7;margin:8px 0 0}
   .panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:16px 0}
   .panel h2{font-size:13px;margin:0 0 10px;font-weight:600}
   .bal{display:grid;grid-template-columns:1fr 1fr;gap:12px}
@@ -75,7 +79,12 @@
   .slip{background:#fff;color:#111;width:400px;max-width:100%;border-radius:10px;border:1px solid #E5E5E8;
     box-shadow:0 8px 28px rgba(0,0,0,.09);padding:24px 24px 16px;font-family:var(--mono);font-size:12px;
     opacity:0;transform:translateY(-10px);transition:opacity .5s,transform .5s;display:none}
-  .slip.printed{opacity:1;transform:none;display:block}
+  .slip.printed{opacity:1;transform:none;display:block;animation:printout 2.2s cubic-bezier(.2,.7,.3,1);clip-path:inset(0 0 0 0)}
+  @keyframes printout{0%{clip-path:inset(0 0 100% 0);transform:translateY(-26px)}100%{clip-path:inset(0 0 0% 0);transform:none}}
+  .printcol{display:flex;flex-direction:column;align-items:center;width:400px;max-width:100%}
+  .slot{width:88%;height:10px;border-radius:6px;background:var(--ink);opacity:.85;margin-bottom:-4px;z-index:2;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+  .slip{position:relative}
+  .slip::after{content:"";position:absolute;left:0;right:0;bottom:-8px;height:8px;background:linear-gradient(-45deg,transparent 5px,#fff 0) 0 0/12px 8px repeat-x, linear-gradient(45deg,transparent 5px,#fff 0) 6px 0/12px 8px repeat-x}
   .slip .t1{text-align:center;font-size:13px;font-weight:700;letter-spacing:.02em}
   .slip .t2{text-align:center;font-size:10px;color:#71717A;letter-spacing:.14em;text-transform:uppercase;margin-top:3px}
   .cut{border:none;border-top:1.5px dashed #D9D9DE;margin:12px 0}
@@ -96,9 +105,10 @@
 <div class="wrap">
   <header>
     <h1>Confidential Agent Commerce</h1>
-    <p class="sub">Two autonomous agents transact on Stellar testnet. The amount settles encrypted on-chain — the seller confirms payment by decrypting it, a registered auditor can always read it, everyone else sees nothing.</p>
+    <p class="sub">Two autonomous agents transact on Stellar testnet. The amount settles encrypted on-chain. The seller confirms payment by decrypting it, a registered auditor can always read it, everyone else sees nothing.</p>
     <div class="runbar">
-      <input id="amt" inputmode="decimal" placeholder="amount in XLM — blank = random" autocomplete="off">
+      <select id="denom"><option value="xlm">XLM</option><option value="usd">USD</option></select>
+      <input id="amt" inputmode="decimal" placeholder="amount (blank = random)" autocomplete="off">
       <button class="run" id="run">Run a real payment</button>
       <span class="status" id="status"></span>
     </div>
@@ -106,9 +116,9 @@
 
   <div class="idstrip" id="idstrip"></div>
 
-  <div class="chat" id="chat"><div class="empty">Press run. This is not a simulation — a new payment is negotiated, proven, and settled on testnet while you watch. Takes ~20 seconds.</div></div>
+  <div class="chat" id="chat"><div class="empty">Press run. This is not a simulation: a new payment is negotiated, proven, and settled on testnet while you watch. Takes about 20 seconds. Price it in XLM or in dollars (converted live from the reflector oracle). Click an agent name to rename it.</div></div>
 
-  <div class="slipwrap"><div class="slip" id="slip"></div></div>
+  <div class="slipwrap"><div class="printcol"><div class="slot" id="slot" style="display:none"></div><div class="slip" id="slip"></div></div></div>
   <div class="exports" id="exports">
     <button id="b-print">Print / PDF</button>
     <button id="b-txt">TXT</button>
@@ -116,10 +126,10 @@
   </div>
 
   <div class="panel" id="balances" style="display:none">
-    <h2>The chain's view vs the agents' view — live</h2>
+    <h2>The chain's view vs the agents' view, live</h2>
     <div class="bal">
-      <div class="cell"><div class="who">NOVA · buyer</div><div>chain holds:</div><div class="commit" id="nova-commit"></div><div>NOVA decrypts:</div><div class="dec" id="nova-dec"></div></div>
-      <div class="cell"><div class="who">VEGA · seller</div><div>chain holds:</div><div class="commit" id="vega-commit"></div><div>VEGA decrypts:</div><div class="dec" id="vega-dec"></div></div>
+      <div class="cell"><div class="who">buyer</div><div>chain holds:</div><div class="commit" id="nova-commit"></div><div>NOVA decrypts:</div><div class="dec" id="nova-dec"></div></div>
+      <div class="cell"><div class="who">seller</div><div>chain holds:</div><div class="commit" id="vega-commit"></div><div>VEGA decrypts:</div><div class="dec" id="vega-dec"></div></div>
     </div>
   </div>
 
@@ -133,14 +143,23 @@
     <div class="links">
       token contract: <a href="https://stellar.expert/explorer/testnet/contract/CBFOJTALVTO3LPZZHEXDD44K7RQKQJGAASF6XOKP5FWZD6WYKV4WN7HF" target="_blank" rel="noreferrer">CBFOJTAL…WN7HF</a><br>
       proof verifier: <a href="https://stellar.expert/explorer/testnet/contract/CBXEPTSEC3433EH3TKUZSSZCIWIDMGZDY2FB7BN5IJ76A2JISQF4YTN6" target="_blank" rel="noreferrer">CBXEPTSE…YTN6</a> · auditor registry: <a href="https://stellar.expert/explorer/testnet/contract/CDCPR4AURWJQRY4KXSRU7H7ABKIHTDORSQABIOUH37DU3IGYV5LRCHEK" target="_blank" rel="noreferrer">CDCPR4AU…CHEK</a><br>
-      NOVA account: <a id="l-nova" target="_blank" rel="noreferrer"></a><br>
-      VEGA account: <a id="l-vega" target="_blank" rel="noreferrer"></a>
+      buyer account: <a id="l-nova" target="_blank" rel="noreferrer"></a><br>
+      seller account: <a id="l-vega" target="_blank" rel="noreferrer"></a>
     </div>
+  </div>
+
+  <div class="panel">
+    <h2>Bring your own agent</h2>
+    <div style="font-size:13px;color:var(--sub)">Any environment can join. Your agent gets a persistent identity, its own face, and pays the seller here confidentially. When it does, the seller's decrypted total on this page includes your payment.</div>
+    <pre class="byo">git clone https://github.com/Stellar-Light/agent-experiments
+cd agent-experiments/agents
+npm install
+node join.mjs --name YourAgent --amount 2</pre>
   </div>
 
   <footer>
     <a href="/how/">How it works</a> · <a href="https://github.com/Stellar-Light/agent-experiments">Source</a><br>
-    Built on <a href="https://github.com/OpenZeppelin/stellar-contracts">OpenZeppelin Confidential Tokens</a> and <a href="https://github.com/aguilar1x/stellar-confidential-token-sdk">stellar-confidential-token-sdk</a>. Testnet only; the client SDK is unaudited — do not hold value with it. Session keys are published testnet keys holding nothing.
+    Built on <a href="https://github.com/OpenZeppelin/stellar-contracts">OpenZeppelin Confidential Tokens</a> and <a href="https://github.com/aguilar1x/stellar-confidential-token-sdk">stellar-confidential-token-sdk</a>. Testnet only; the client SDK is unaudited, do not hold value with it. Session keys are published testnet keys holding nothing.
   </footer>
 </div>
 <script type="module" src="/src/pay.ts"></script>

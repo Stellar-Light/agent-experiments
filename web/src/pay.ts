@@ -5,10 +5,10 @@
  * generated in your browser (UltraHonk via wasm), the transfer is submitted
  * to the live contract, and the seller confirms payment by decrypting its
  * own receiving balance from public chain events. Every run is a new
- * on-chain transaction — the price is random each time and never visible
+ * on-chain transaction, the price is random each time and never visible
  * on-chain.
  *
- * Session keys are published testnet keys holding nothing (deliberate — the
+ * Session keys are published testnet keys holding nothing (deliberate, the
  * SDK demo's own precedent), so the page can run the real client.
  */
 import { Buffer } from "buffer";
@@ -31,8 +31,8 @@ function ensureName(side: "nova" | "vega") {
   n.className = `name ${side === "nova" ? "nova" : ""}`;
   n.style.textAlign = side === "nova" ? "right" : "left";
   const who = side === "nova" ? SESSION.nova.address : SESSION.vega.address;
-  n.innerHTML = `<img src="${blobAvatar(who)}" width="20" height="20" style="vertical-align:-5px;margin:0 5px 0 0;border-radius:50%"> ${side === "nova" ? "NOVA · buyer" : "VEGA · seller"}`;
-  if (side === "nova") { n.innerHTML = `${side === "nova" ? "NOVA · buyer" : ""} <img src="${blobAvatar(who)}" width="20" height="20" style="vertical-align:-5px;margin:0 0 0 5px;border-radius:50%">`; }
+  n.innerHTML = `<img src="${blobAvatar(who)}" width="20" height="20" style="vertical-align:-5px;margin:0 5px 0 0;border-radius:50%"> ${side === "nova" ? agentName("pip") + " (buyer)" : agentName("momo") + " (seller)"}`;
+  if (side === "nova") { n.innerHTML = `${side === "nova" ? agentName("pip") + " (buyer)" : ""} <img src="${blobAvatar(who)}" width="20" height="20" style="vertical-align:-5px;margin:0 0 0 5px;border-radius:50%">`; }
   $("chat").appendChild(n);
 }
 function bubble(side: "nova" | "vega", text: string) {
@@ -66,6 +66,35 @@ function typing(side: "nova" | "vega", label: string) {
 }
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const status = (t: string) => (($("status") as HTMLElement).textContent = t);
+
+// agent names: cute defaults, click to rename, saved locally
+const DEFAULT_NAMES: Record<string, string> = { pip: "Pip", momo: "Momo" };
+function agentName(k: string): string {
+  try { return localStorage.getItem("name:" + k) || DEFAULT_NAMES[k]; } catch { return DEFAULT_NAMES[k]; }
+}
+document.addEventListener("click", (e) => {
+  const el = (e.target as HTMLElement).closest?.("[data-agent]") as HTMLElement | null;
+  if (!el) return;
+  const k = el.dataset.agent!;
+  const next = prompt("Rename this agent:", agentName(k));
+  if (next && next.trim()) { localStorage.setItem("name:" + k, next.trim().slice(0, 24)); location.reload(); }
+});
+
+// USD mode: live XLM/USD from the reflector oracle (mainnet, read-only, keyless)
+async function xlmUsdRate(sdk: any): Promise<number> {
+  const { Contract, TransactionBuilder, Networks, xdr: X, scValToNative, rpc } = sdk;
+  const server = new (rpc?.Server ?? sdk.SorobanRpc.Server)("https://mainnet.sorobanrpc.com");
+  const source = await server.getAccount("GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN7");
+  const contract = new Contract("CAFJZQWSED6YAWZU3GWRTOCNPPCGBN32L7QV43XX5LZLFTK6JLN34DLN");
+  const asset = X.ScVal.scvVec([X.ScVal.scvSymbol("Other"), X.ScVal.scvSymbol("XLM")]);
+  const tx = new TransactionBuilder(source, { fee: "100", networkPassphrase: Networks.PUBLIC })
+    .addOperation(contract.call("lastprice", asset)).setTimeout(30).build();
+  const sim = await server.simulateTransaction(tx);
+  const native = scValToNative(sim.result.retval);
+  const rate = Number(native.price) / 1e14;
+  if (!(rate > 0.01 && rate < 100)) throw new Error("oracle rate out of sane range");
+  return rate;
+}
 
 // ── the run ─────────────────────────────────────────────────────────────────
 let running = false;
@@ -116,7 +145,7 @@ async function run() {
       return e;
     };
 
-    // the deal — user-set amount wins; blank = random
+    // the deal, user-set amount wins; blank = random
     const parseXlm = (raw: string): bigint | null => {
       const t = raw.trim();
       if (!t) return null;
@@ -124,19 +153,31 @@ async function run() {
       const [i, f = ""] = t.split(".");
       const v = BigInt(i) * STROOP + BigInt((f + "0000000").slice(0, 7));
       if (v <= 0n) throw new Error("amount must be positive");
-      if (v > 200n * STROOP) throw new Error("keep it ≤ 200 XLM — it's a shared testnet balance");
+      if (v > 200n * STROOP) throw new Error("keep it ≤ 200 XLM, it's a shared testnet balance");
       return v;
     };
-    const custom = parseXlm(($("amt") as HTMLInputElement).value);
-    const price = custom ?? BigInt(1 + Math.floor(Math.random() * 9)) * STROOP;
+    const denom = ($("denom") as HTMLSelectElement).value;
+    const typed = parseXlm(($("amt") as HTMLInputElement).value);
+    let price: bigint, priceNote = "";
+    if (denom === "usd" && typed) {
+      status("reading oracle rate");
+      const sdkAll = await import("@stellar/stellar-sdk");
+      const rate = await xlmUsdRate(sdkAll);
+      const usd = Number(typed) / 1e7;
+      price = BigInt(Math.round((usd / rate) * 1e7));
+      priceNote = `$${usd} at ${rate.toFixed(4)} USD/XLM (live reflector oracle) = ${(Number(price) / 1e7).toFixed(7)} XLM`;
+      sys(`invoice denominated in dollars: ${priceNote}`);
+    } else {
+      price = typed ?? BigInt(1 + Math.floor(Math.random() * 9)) * STROOP;
+      if (typed) sys(`price set by you: ${(Number(price) / 1e7).toString()} XLM, watch the seller decrypt exactly that`);
+    }
     const priceXlm = (Number(price) / 1e7).toString();
-    if (custom) sys(`price set by you: ${priceXlm} XLM — watch the seller decrypt exactly that`);
 
     bubble("nova", "Need the settlement brief. What's your price today?");
     await wait(700);
     let t = typing("vega", "checking books");
     await wait(900); t();
-    bubble("vega", `${priceXlm} XLM. Pay it confidentially — the amount stays between us and the auditor.`);
+    bubble("vega", `${priceXlm} XLM. Pay it confidentially, the amount stays between us and the auditor.`);
     await wait(500);
 
     // funds check + top-up if needed (real transactions, no proof required)
@@ -145,7 +186,7 @@ async function run() {
     let spendable = novaEngine.state().spendable;
     if (spendable.v < price + 2n * STROOP) {
       const topup = price + 100n * STROOP;
-      sys(`buyer balance low — depositing ${(Number(topup) / 1e7).toString()} XLM into the contract (deposits are public by design)`);
+      sys(`buyer balance low, depositing ${(Number(topup) / 1e7).toString()} XLM into the contract (deposits are public by design)`);
       const dep = await client.invoke(SESSION.contracts.token, "deposit",
         [addr(nova.address), addr(nova.address), i128(topup)], novaSigner);
       sys(`deposit tx ${dep.hash.slice(0, 10)}…`);
@@ -173,14 +214,14 @@ async function run() {
     const proveSecs = ((performance.now() - t0) / 1000).toFixed(1);
     const payload = new Uint8Array(encodeTransferData(witness, proof).bytes());
     t();
-    sys(`proof generated in this browser — ${proveSecs}s`, "good");
+    sys(`proof generated in this browser in ${proveSecs}s`, "good");
 
     t = typing("nova", "submitting to testnet…");
     status("submitting…");
     const pay = await client.invoke(SESSION.contracts.token, "confidential_transfer",
       [addr(nova.address), addr(vega.address), bytesVal(payload)], novaSigner);
     t();
-    sys(`confidential transfer settled · <a href="https://stellar.expert/explorer/testnet/tx/${pay.hash}" target="_blank" rel="noreferrer">${pay.hash.slice(0, 16)}…</a> · the amount is not in that transaction`, "good");
+    sys(`confidential transfer settled <a href="https://stellar.expert/explorer/testnet/tx/${pay.hash}" target="_blank" rel="noreferrer">${pay.hash.slice(0, 16)}…</a> (the amount is not in that transaction)`, "good");
     bubble("nova", "Sent. Check your side.");
 
     await wait(400);
@@ -190,7 +231,7 @@ async function run() {
     const delta = vegaAfter - vegaBefore;
     t();
     if (delta !== price) throw new Error(`seller decrypted ${delta} stroops, expected ${price}`);
-    bubble("vega", `Confirmed — decrypted exactly +${priceXlm} XLM. Nobody else can read that number. Shipping the brief.`);
+    bubble("vega", `Confirmed. Decrypted exactly +${priceXlm} XLM. Nobody else can read that number. Shipping the brief.`);
 
     // chain verification of the buyer's own state
     const after = await rebuild(nova);
@@ -218,8 +259,8 @@ async function run() {
     } catch {}
     pushHistory({ tx: pay.hash, amt: priceXlm, at: new Date().toISOString().slice(0, 16).replace("T", " ") });
   } catch (e: any) {
-    sys(`error: ${e?.message ?? e} — if two people run this at once the balance state races; try again`, "");
-    status("failed — try again");
+    sys(`error: ${e?.message ?? e}. If two people run this at once the balance state races; try again`, "");
+    status("failed, try again");
   } finally {
     btn.disabled = false;
     (btn as HTMLButtonElement).textContent = "Run another payment";
@@ -235,15 +276,15 @@ function receipt(tx: string, priceXlm: string, changeXlm: string) {
   const dt = new Date().toISOString().replace("T", " ").slice(0, 19) + " UTC";
   $("slip").innerHTML = `
     <div class="t1">PAYMENT RECEIPT</div>
-    <div class="t2">stellar testnet · confidential transfer</div>
+    <div class="t2">stellar testnet, confidential transfer</div>
     <hr class="cut">
     <div class="lr"><span class="l">DATE</span><span class="r">${dt}</span></div>
-    <div class="lr"><span class="l">FROM</span><span class="r">NOVA ${SESSION.nova.address.slice(0, 6)}…${SESSION.nova.address.slice(-4)}</span></div>
-    <div class="lr"><span class="l">TO</span><span class="r">VEGA ${SESSION.vega.address.slice(0, 6)}…${SESSION.vega.address.slice(-4)}</span></div>
+    <div class="lr"><span class="l">FROM</span><span class="r">${agentName("pip")} ${SESSION.nova.address.slice(0, 6)}…${SESSION.nova.address.slice(-4)}</span></div>
+    <div class="lr"><span class="l">TO</span><span class="r">${agentName("momo")} ${SESSION.vega.address.slice(0, 6)}…${SESSION.vega.address.slice(-4)}</span></div>
     <hr class="cut">
     <div class="bigrow"><span>AMOUNT ON-CHAIN</span><span class="amt">ENCRYPTED</span></div>
     <div class="decr">SELLER DECRYPTED: +${priceXlm} XLM (exact match)<br>BUYER CHANGE: ${changeXlm} XLM, chain-verified</div>
-    <div class="lr"><span class="l">AUDITOR</span><span class="r">#${SESSION.auditorId} — can decrypt, enforced by the proof</span></div>
+    <div class="lr"><span class="l">AUDITOR</span><span class="r">#${SESSION.auditorId}, can decrypt, enforced by the proof</span></div>
     <div class="lr"><span class="l">FEE</span><span class="r">≈0.02–0.05 XLM (proof verification)</span></div>
     <hr class="cut">
     <div class="lr"><span class="l">TX</span><span class="r">${tx}</span></div>
@@ -254,8 +295,8 @@ function receipt(tx: string, priceXlm: string, changeXlm: string) {
   ($("b-tx") as HTMLAnchorElement).href = `https://stellar.expert/explorer/testnet/tx/${tx}`;
   lastTxt = `PAYMENT RECEIPT - stellar testnet, confidential transfer
 ${dt}
-FROM NOVA ${SESSION.nova.address}
-TO   VEGA ${SESSION.vega.address}
+FROM ${agentName("pip")} ${SESSION.nova.address}
+TO   ${agentName("momo")} ${SESSION.vega.address}
 AMOUNT ON-CHAIN: ENCRYPTED
 seller decrypted: +${priceXlm} XLM (exact match)
 buyer change: ${changeXlm} XLM, chain-verified
@@ -273,7 +314,7 @@ function renderHistory() {
   if (!runs.length) return;
   ($("histwrap") as HTMLElement).style.display = "";
   $("history").innerHTML = runs.map((r) =>
-    `<li>${r.at} UTC · ${r.amt} XLM (hidden on-chain) · <a href="https://stellar.expert/explorer/testnet/tx/${r.tx}" target="_blank" rel="noreferrer">${r.tx.slice(0, 12)}…</a></li>`).join("");
+    `<li>${r.at} UTC, ${r.amt} XLM (hidden on-chain), <a href="https://stellar.expert/explorer/testnet/tx/${r.tx}" target="_blank" rel="noreferrer">${r.tx.slice(0, 12)}…</a></li>`).join("");
 }
 function pushHistory(r: Run) {
   const runs = [r, ...loadHistory()].slice(0, 12);
@@ -284,12 +325,12 @@ renderHistory();
 // identity strip
 const strip = document.getElementById("idstrip");
 if (strip) {
-  const card = (addr: string, name: string, role: string) => `
+  const card = (addr: string, name: string, role: string, key: string) => `
     <div class="idcard"><img src="${blobAvatar(addr, 40)}" width="40" height="40" alt="">
-      <div><div class="idname">${name}</div><div class="idrole">${role}</div>
+      <div><div class="idname" data-agent="${key}" title="click to rename">${name}</div><div class="idrole">${role}</div>
       <a class="idaddr" href="https://stellar.expert/explorer/testnet/account/${addr}" target="_blank" rel="noreferrer">${addr.slice(0, 6)}…${addr.slice(-4)}</a></div></div>`;
-  strip.innerHTML = card(SESSION.nova.address, "NOVA", "autonomous buyer · pays confidentially") +
-    card(SESSION.vega.address, "VEGA", "autonomous seller · verifies by decryption");
+  strip.innerHTML = card(SESSION.nova.address, agentName("pip"), "autonomous buyer, pays confidentially", "pip") +
+    card(SESSION.vega.address, agentName("momo"), "autonomous seller, verifies by decryption", "momo");
 }
 const ln = $("l-nova") as HTMLAnchorElement, lv = $("l-vega") as HTMLAnchorElement;
 ln.href = `https://stellar.expert/explorer/testnet/account/${SESSION.nova.address}`;

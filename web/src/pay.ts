@@ -44,7 +44,6 @@ function bubble(side: "nova" | "vega", text: string) {
   row.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 function sys(text: string, cls = "") {
-  lastSide = "";
   const row = document.createElement("div");
   row.className = "row sys";
   row.innerHTML = `<div class="s ${cls}">${text}</div>`;
@@ -62,7 +61,7 @@ function typing(side: "nova" | "vega", label: string) {
   $("chat").appendChild(row);
   $("chat").appendChild(lab);
   row.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  return () => { row.remove(); lab.remove(); lastSide = ""; };
+  return () => { row.remove(); lab.remove(); };
 }
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const status = (t: string) => (($("status") as HTMLElement).textContent = t);
@@ -72,24 +71,6 @@ const DEFAULT_NAMES: Record<string, string> = { pip: "Pip", momo: "Momo" };
 function agentName(k: string): string {
   try { return localStorage.getItem("name:" + k) || DEFAULT_NAMES[k]; } catch { return DEFAULT_NAMES[k]; }
 }
-document.addEventListener("click", (e) => {
-  const btn = (e.target as HTMLElement).closest?.("[data-rename]") as HTMLElement | null;
-  if (!btn) return;
-  const k = (btn as HTMLElement).dataset.rename!;
-  const nameEl = document.querySelector(`[data-agent="${k}"]`) as HTMLElement;
-  if (!nameEl || nameEl.querySelector("input")) return;
-  const current = agentName(k);
-  nameEl.innerHTML = `<input class="rename" value="${current}" maxlength="24">`;
-  const input = nameEl.querySelector("input")! as HTMLInputElement;
-  input.focus(); input.select();
-  const commit = () => {
-    const v = input.value.trim().slice(0, 24) || current;
-    try { localStorage.setItem("name:" + k, v); } catch {}
-    renderIdentity();
-  };
-  input.addEventListener("keydown", (ev) => { if (ev.key === "Enter") commit(); if (ev.key === "Escape") renderIdentity(); });
-  input.addEventListener("blur", commit);
-});
 
 // USD mode: live XLM/USD from the reflector oracle (mainnet, read-only, keyless)
 async function xlmUsdRate(sdk: any): Promise<number> {
@@ -117,6 +98,7 @@ async function run() {
   $("chat").innerHTML = "";
   lastSide = "";
   $("slip").classList.remove("printed");
+  const mask0 = document.getElementById("feedmask") as HTMLElement | null; if (mask0) { mask0.style.height = "0px"; mask0.classList.remove("printing"); }
   ($("exports") as HTMLElement).style.visibility = "hidden";
 
   try {
@@ -254,7 +236,7 @@ async function run() {
     sys(check.ok ? "buyer state verified byte-for-byte against on-chain commitments" : "verify mismatch", check.ok ? "good" : "");
     await wait(300);
     bubble("nova", "Received. Good doing business.");
-    status("done");
+    status("");
 
     // the receipt
     receipt(pay.hash, priceXlm, (Number(after.state().spendable.v) / 1e7).toString());
@@ -270,11 +252,10 @@ async function run() {
     } catch {}
     pushHistory({ tx: pay.hash, amt: priceXlm, at: new Date().toISOString().slice(0, 16).replace("T", " ") });
   } catch (e: any) {
-    sys(`error: ${e?.message ?? e}. If two people run this at once the balance state races; try again`, "");
-    status("failed, try again");
+    sys(`error: ${e?.message || e?.name || String(e) || "unknown"}. If two people run this at once the balance state races; try again`, "");
+    status("");
   } finally {
     btn.disabled = false;
-    (btn as HTMLButtonElement).textContent = "Run another payment";
     running = false;
   }
 }
@@ -301,7 +282,18 @@ function receipt(tx: string, priceXlm: string, changeXlm: string) {
     <div class="lr"><span class="l">TX</span><span class="r">${tx}</span></div>
     <div class="lr"><span class="l">CONTRACT</span><span class="r">${SESSION.contracts.token.slice(0, 10)}… (OpenZeppelin)</span></div>
     <div class="lr"><span class="l">PROOF</span><span class="r">UltraHonk, generated in this browser</span></div>`;
-  $("slip").classList.add("printed");
+  const slip = $("slip");
+  slip.classList.add("printed");
+  const slot = document.getElementById("slot");
+  if (slot) slot.style.display = "";
+  const mask = document.getElementById("feedmask") as HTMLElement | null;
+  if (mask) {
+    mask.classList.remove("printing");
+    mask.style.height = slip.scrollHeight + 16 + "px";
+    if (slot) slot.scrollIntoView({ behavior: "smooth", block: "center" });
+    void mask.offsetWidth;
+    requestAnimationFrame(() => requestAnimationFrame(() => mask.classList.add("printing")));
+  }
   ($("exports") as HTMLElement).style.visibility = "visible";
   ($("b-tx") as HTMLAnchorElement).href = `https://stellar.expert/explorer/testnet/tx/${tx}`;
   lastTxt = `PAYMENT RECEIPT - stellar testnet, confidential transfer
@@ -340,8 +332,7 @@ function renderIdentity() {
   const card = (addr: string, key: string, role: string) => `
     <div class="idcard"><img src="${blobAvatar(addr, 40)}" width="40" height="40" alt="">
       <div><div class="idname" data-agent="${key}">${agentName(key)}</div><div class="idrole">${role}</div>
-      <a class="idaddr" href="https://stellar.expert/explorer/testnet/account/${addr}" target="_blank" rel="noreferrer">${addr.slice(0, 6)}…${addr.slice(-4)}</a></div>
-      <button class="renbtn" data-rename="${key}">rename</button></div>`;
+      <a class="idaddr" href="https://stellar.expert/explorer/testnet/account/${addr}" target="_blank" rel="noreferrer">${addr.slice(0, 6)}…${addr.slice(-4)}</a></div></div>`;
   strip.innerHTML = card(SESSION.nova.address, "pip", "autonomous buyer, pays confidentially") +
     card(SESSION.vega.address, "momo", "autonomous seller, verifies by decryption");
 }

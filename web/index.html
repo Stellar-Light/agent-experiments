@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F7F7F8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E0E10" media="(prefers-color-scheme: dark)">
 <title>Confidential Agent Commerce</title>
 <meta name="description" content="Two autonomous agents transact on Stellar testnet. The amount settles encrypted on-chain. Run a real payment and watch it happen.">
 <style>
@@ -10,32 +12,31 @@
     --bg:#F7F7F8; --card:#FFFFFF; --ink:#111114; --sub:#71717A; --line:#E7E7EA;
     --nova:#0A84FF; --vega:#E9E9EB; --vega-ink:#111114; --ok:#1DA860;
     --mono:ui-monospace,'SF Mono',SFMono-Regular,Menlo,monospace;
-    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    --sans:ui-rounded,'SF Pro Rounded',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   }
   @media (prefers-color-scheme: dark){
     :root{ --bg:#0E0E10; --card:#17171A; --ink:#F2F2F3; --sub:#8E8E95; --line:#26262B; --vega:#26262B; --vega-ink:#F2F2F3; }
   }
-  *{box-sizing:border-box}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  button,select,a,.renbtn,[data-rename]{touch-action:manipulation;-webkit-user-select:none;user-select:none}
+  input{touch-action:manipulation}
   html{background:var(--bg)}
   body{margin:0;font-family:var(--sans);background:var(--bg);color:var(--ink);font-size:15px;line-height:1.5}
-  .wrap{max-width:560px;margin:0 auto;padding:44px 18px 80px}
+  .wrap{max-width:560px;margin:0 auto;padding:44px 18px calc(80px + env(safe-area-inset-bottom))}
   header{margin-bottom:26px}
   h1{font-size:26px;letter-spacing:-.02em;margin:0 0 6px;font-weight:700}
   .sub{color:var(--sub);font-size:14.5px;margin:0;max-width:46ch}
-  .runbar{display:flex;align-items:center;gap:14px;margin:22px 0 8px}
-  button.run{font-family:var(--sans);font-size:14.5px;font-weight:600;padding:11px 22px;border-radius:999px;border:none;background:var(--ink);color:var(--bg);cursor:pointer}
+  .runbar{display:flex;align-items:center;gap:10px;margin:22px 0 8px;flex-wrap:wrap}
+  button.run{font-family:var(--sans);font-size:14.5px;font-weight:600;padding:11px 22px;border-radius:999px;border:none;background:var(--ink);color:var(--bg);cursor:pointer;white-space:nowrap}
   button.run:disabled{opacity:.45;cursor:default}
   #amt{font-family:var(--mono);font-size:13px;padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);width:230px;max-width:45vw}
   #amt:focus{outline:none;border-color:var(--ink)}
   .selwrap{position:relative}
   .selwrap::after{content:"";position:absolute;right:12px;top:50%;width:7px;height:7px;border-right:1.5px solid var(--sub);border-bottom:1.5px solid var(--sub);transform:translateY(-70%) rotate(45deg);pointer-events:none}
   #denom{-webkit-appearance:none;appearance:none;font-family:var(--mono);font-size:13px;padding:10px 30px 10px 13px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
-  #denom:hover{border-color:var(--sub)}
+  @media (hover: hover) and (pointer: fine){ #denom:hover{border-color:var(--sub)} }
   #denom:focus{outline:2px solid var(--ink);outline-offset:1px;border-color:var(--ink)}
-    .renbtn{margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:.04em;padding:5px 10px;border-radius:7px;border:1px solid var(--line);background:transparent;color:var(--sub);cursor:pointer}
-  .renbtn:hover{color:var(--ink);border-color:var(--sub)}
-  input.rename{font:inherit;font-weight:650;font-size:13.5px;border:1px solid var(--ink);border-radius:6px;padding:2px 6px;width:120px;background:var(--card);color:var(--ink)}
-  input.rename:focus{outline:none}
+  
   pre.byo{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow-x:auto;font-family:var(--mono);font-size:11.5px;line-height:1.7;margin:8px 0 0}
   .panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:16px 0}
   .panel h2{font-size:13px;margin:0 0 10px;font-weight:600}
@@ -57,9 +58,9 @@
   .idname{font-weight:650;font-size:13.5px}
   .idrole{font-size:11px;color:var(--sub)}
   .idaddr{font-family:var(--mono);font-size:10px;color:var(--sub);text-decoration:none}
-  .idaddr:hover{color:var(--ink)}
+  @media (hover: hover) and (pointer: fine){ .idaddr:hover{color:var(--ink)} }
 
-  .chat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 14px;min-height:120px;margin:14px 0}
+  .chat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 14px;min-height:120px;margin:14px 0;overscroll-behavior:contain}
   .empty{color:var(--sub);font-size:13.5px;text-align:center;padding:26px 10px}
   .row{display:flex;margin:3px 0;animation:pop .25s ease}
   .row.nova{justify-content:flex-end}
@@ -71,10 +72,9 @@
   .bubble{max-width:78%;padding:8px 13px;border-radius:18px;font-size:14.5px;line-height:1.4;word-wrap:break-word}
   .vega .bubble{background:var(--vega);color:var(--vega-ink);border-bottom-left-radius:5px}
   .nova .bubble{background:var(--nova);color:#fff;border-bottom-right-radius:5px}
-  .sys .s{font-family:var(--mono);font-size:10px;color:var(--sub);padding:5px 12px;margin:4px 0;text-align:center;max-width:88%;word-break:break-all;background:color-mix(in srgb, var(--line) 45%, transparent);border-radius:999px;line-height:1.6}
+  .sys .s{font-family:var(--mono);font-size:11px;color:color-mix(in srgb, var(--ink) 62%, var(--sub));padding:5px 12px;margin:4px 0;text-align:center;max-width:88%;word-break:break-all;background:color-mix(in srgb, var(--line) 45%, transparent);border-radius:999px;line-height:1.6}
   .sys .s a{color:var(--sub);text-decoration:underline;text-underline-offset:2px}
-  .sys .s.good{color:var(--ok);background:color-mix(in srgb, var(--ok) 9%, transparent)}
-  .sys .s.good::before{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--ok);margin:0 6px 1px 0}
+
   .typing .bubble{display:flex;gap:4px;align-items:center;min-width:44px;min-height:20px}
   .dot{width:7px;height:7px;border-radius:50%;background:var(--sub);opacity:.5;animation:blink 1.2s infinite}
   .dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
@@ -86,9 +86,9 @@
   .slip{background:#fff;color:#111;width:400px;max-width:100%;border-radius:10px;border:1px solid #E5E5E8;
     box-shadow:0 8px 28px rgba(0,0,0,.09);padding:24px 24px 16px;font-family:var(--mono);font-size:12px;
     opacity:0;transform:translateY(-10px);transition:opacity .5s,transform .5s;display:none}
-  .feed{overflow:hidden;max-height:0;width:100%;display:flex;justify-content:center}
-  .feed.printing{animation:paperfeed 3.4s steps(26, end) forwards}
-  @keyframes paperfeed{from{max-height:0}to{max-height:760px}}
+  .feed{overflow:hidden;height:0;width:100%;display:flex;justify-content:center}
+  .feed .slip{transform:translateY(-101%)}
+  .feed.printing .slip{transform:translateY(0);transition:transform 3s steps(24, end)}
   .slip.printed{opacity:1;transform:none;display:block}
   .printcol{display:flex;flex-direction:column;align-items:center;width:400px;max-width:100%}
   .slot{width:88%;height:10px;border-radius:6px;background:var(--ink);opacity:.85;margin-bottom:-4px;z-index:2;box-shadow:0 2px 8px rgba(0,0,0,.25)}
@@ -107,6 +107,10 @@
   .exports button,.exports a{font-family:var(--mono);font-size:11px;padding:7px 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;text-decoration:none}
   footer{margin-top:36px;color:var(--sub);font-size:12.5px;line-height:1.7}
   footer a{color:var(--sub)}
+  @media (pointer: coarse){
+    #amt,#denom{font-size:16px}
+    .bubble{font-size:15px}
+  }
   @media print{ body *{display:none!important} .slipwrap,.slipwrap *{display:block!important} .slip{box-shadow:none;border:none} }
 </style>
 </head>
@@ -118,14 +122,14 @@
     <div class="runbar">
       <div class="selwrap"><select id="denom" aria-label="currency"><option value="xlm">XLM</option><option value="usd">USD, oracle to XLM</option></select></div>
       <input id="amt" inputmode="decimal" placeholder="amount (blank = random)" autocomplete="off">
-      <button class="run" id="run">Run a real payment</button>
+      <button class="run" id="run">Run payment</button>
       <span class="status" id="status"></span>
     </div>
   </header>
 
   <div class="idstrip" id="idstrip"></div>
 
-  <div class="chat" id="chat"><div class="empty">Press run. This is not a simulation: a new payment is negotiated, proven, and settled on testnet while you watch. Takes about 20 seconds. Price it in XLM or in dollars (converted live from the reflector oracle). Click an agent name to rename it.</div></div>
+  <div class="chat" id="chat"><div class="empty">Press run. This is not a simulation: a new payment is negotiated, proven, and settled on testnet while you watch. Takes about 20 seconds. Price it in XLM or in dollars (converted live from the reflector oracle). </div></div>
 
   <div class="slipwrap"><div class="printcol"><div class="slot" id="slot" style="display:none"></div><div class="feed" id="feedmask"><div class="slip" id="slip"></div></div></div></div>
   <div class="exports" id="exports">
@@ -137,8 +141,8 @@
   <div class="panel" id="balances" style="display:none">
     <h2>The chain's view vs the agents' view, live</h2>
     <div class="bal">
-      <div class="cell"><div class="who">buyer</div><div>chain holds:</div><div class="commit" id="nova-commit"></div><div>NOVA decrypts:</div><div class="dec" id="nova-dec"></div></div>
-      <div class="cell"><div class="who">seller</div><div>chain holds:</div><div class="commit" id="vega-commit"></div><div>VEGA decrypts:</div><div class="dec" id="vega-dec"></div></div>
+      <div class="cell"><div class="who">Pip, buyer</div><div>chain holds:</div><div class="commit" id="nova-commit"></div><div>Pip decrypts:</div><div class="dec" id="nova-dec"></div></div>
+      <div class="cell"><div class="who">Momo, seller</div><div>chain holds:</div><div class="commit" id="vega-commit"></div><div>Momo decrypts:</div><div class="dec" id="vega-dec"></div></div>
     </div>
   </div>
 

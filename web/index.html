@@ -71,9 +71,10 @@
   .bubble{max-width:78%;padding:8px 13px;border-radius:18px;font-size:14.5px;line-height:1.4;word-wrap:break-word}
   .vega .bubble{background:var(--vega);color:var(--vega-ink);border-bottom-left-radius:5px}
   .nova .bubble{background:var(--nova);color:#fff;border-bottom-right-radius:5px}
-  .sys .s{font-family:var(--mono);font-size:10.5px;color:var(--sub);padding:5px 8px;text-align:center;max-width:92%;word-break:break-all}
-  .sys .s a{color:var(--sub)}
-  .sys .s.good{color:var(--ok)}
+  .sys .s{font-family:var(--mono);font-size:10px;color:var(--sub);padding:5px 12px;margin:4px 0;text-align:center;max-width:88%;word-break:break-all;background:color-mix(in srgb, var(--line) 45%, transparent);border-radius:999px;line-height:1.6}
+  .sys .s a{color:var(--sub);text-decoration:underline;text-underline-offset:2px}
+  .sys .s.good{color:var(--ok);background:color-mix(in srgb, var(--ok) 9%, transparent)}
+  .sys .s.good::before{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--ok);margin:0 6px 1px 0}
   .typing .bubble{display:flex;gap:4px;align-items:center;min-width:44px;min-height:20px}
   .dot{width:7px;height:7px;border-radius:50%;background:var(--sub);opacity:.5;animation:blink 1.2s infinite}
   .dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}

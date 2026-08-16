@@ -1,0 +1,140 @@
+<title>Receipt 91a79853…dfa9f89 · Confidential Agent Commerce</title>
+<style>
+  :root{
+    --paper:#FAFAF7; --card:#FFFFFF; --ink:#1A1812; --muted:#6E6A5E; --line:#E4E1D5;
+    --gold:#8F7200; --gold-soft:#F4EED8; --good:#1E7A46; --good-soft:#E7F2EB;
+    --lock:#5B4B8A; --lock-soft:#EFEBF7;
+    --mono:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --paper:#131210; --card:#1B1A16; --ink:#ECE9E0; --muted:#9A968A; --line:#2C2A23;
+      --gold:#E3C35B; --gold-soft:#2A2513; --good:#58C389; --good-soft:#17281E;
+      --lock:#A995DD; --lock-soft:#241D33; }
+  }
+  :root[data-theme="dark"]{ --paper:#131210; --card:#1B1A16; --ink:#ECE9E0; --muted:#9A968A; --line:#2C2A23;
+    --gold:#E3C35B; --gold-soft:#2A2513; --good:#58C389; --good-soft:#17281E; --lock:#A995DD; --lock-soft:#241D33; }
+  :root[data-theme="light"]{ --paper:#FAFAF7; --card:#FFFFFF; --ink:#1A1812; --muted:#6E6A5E; --line:#E4E1D5;
+    --gold:#8F7200; --gold-soft:#F4EED8; --good:#1E7A46; --good-soft:#E7F2EB; --lock:#5B4B8A; --lock-soft:#EFEBF7; }
+  html{background:var(--paper)}
+  body{font-family:var(--sans);color:var(--ink);background:var(--paper);line-height:1.55;font-size:15px;margin:0}
+  .wrap{max-width:760px;margin:0 auto;padding:44px 20px 90px}
+  .eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  h1{font-size:clamp(24px,4.5vw,34px);letter-spacing:-.02em;line-height:1.1;margin:8px 0 6px;text-wrap:balance}
+  h2{font-size:15px;letter-spacing:.01em;margin:0 0 10px}
+  .chip{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:3px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+  .chip.lock{background:var(--lock-soft);border-color:transparent;color:var(--lock)}
+  .chip.ok{background:var(--good-soft);border-color:transparent;color:var(--good)}
+  .chip.gold{background:var(--gold-soft);border-color:transparent;color:var(--gold)}
+  .meta{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0 26px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:18px 20px;margin:14px 0}
+  .rows{display:grid;gap:0}
+  .row{display:flex;justify-content:space-between;gap:16px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+  .row:last-child{border-bottom:none}
+  .row .k2{color:var(--muted)}
+  .row .v{font-family:var(--mono);font-size:12px;text-align:right;word-break:break-all;max-width:62%}
+  .amount{display:flex;align-items:baseline;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:14px 0 6px}
+  .amount b{font-size:30px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .amount .enc{font-family:var(--mono);font-size:12px;color:var(--lock)}
+  .views{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin:14px 0}
+  .view{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+  .view h3{margin:6px 0 8px;font-size:13.5px}
+  .view p{margin:5px 0;font-size:12.5px;color:var(--muted)}
+  .view .big{font-size:22px;color:var(--ink);font-variant-numeric:tabular-nums;font-weight:650}
+  .view .commit{font-family:var(--mono);font-size:10.5px;word-break:break-all;color:var(--lock);background:var(--lock-soft);border-radius:4px;padding:6px 8px;margin-top:6px}
+  .timeline{margin:8px 0;padding:0;list-style:none}
+  .timeline li{padding:7px 0 7px 18px;border-left:2px solid var(--line);position:relative;font-size:13.5px;margin-left:6px}
+  .timeline li::before{content:"";position:absolute;left:-5px;top:13px;width:8px;height:8px;border-radius:50%;background:var(--gold)}
+  .timeline .who{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-right:8px}
+  .tx{font-family:var(--mono);font-size:11.5px}
+  a{color:var(--gold);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .tw{overflow-x:auto}
+  table{border-collapse:collapse;width:100%;min-width:520px}
+  th{font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);font-weight:500}
+  td{padding:7px 10px;border-bottom:1px solid var(--line);font-size:12.5px;vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  .num{font-variant-numeric:tabular-nums;white-space:nowrap}
+  .footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);color:var(--muted);font-size:12px;max-width:70ch}
+  .k{font-family:var(--mono);font-size:11.5px}
+</style>
+
+<div class="wrap">
+  <div class="eyebrow">Stellar-Light · agent-experiments · e6</div>
+  <h1>Confidential Agent Commerce — the receipt</h1>
+  <div class="meta">
+    <span class="chip lock">🔒 amount hidden on-chain</span>
+    <span class="chip">stellar testnet</span>
+    <span class="chip">2026-08-16 16:19 UTC</span>
+    <span class="chip ok">settled · signature verified</span>
+  </div>
+
+  <div class="card">
+    <div class="amount">
+      <div><b>🔒 encrypted</b><div class="enc">what the public chain shows for the amount</div></div>
+      <div style="text-align:right"><b class="num">40 XLM</b><div class="enc" style="color:var(--good)">what the recipient decrypted</div></div>
+    </div>
+    <div class="rows">
+      <div class="row"><span class="k2">From (buyer agent)</span><span class="v">NOVA · GD3L3S3YHJ2P4R7O4JY5WPAEUCSRG3UK7DQ3IIKOAEY5FNZFEAFPFD2J</span></div>
+      <div class="row"><span class="k2">To (seller agent)</span><span class="v">VEGA · GB4HKEMWPZ5BL5P2OVXQWIOGE4ILVZNZWGJIAYCKZJTIANIDAERLQGEE</span></div>
+      <div class="row"><span class="k2">Payment hash</span><span class="v"><a href="https://stellar.expert/explorer/testnet/tx/91a79853c7dd945948a1780c9133149776dc3a4a5fe8381c7f0f9888dffa9f89">91a79853c7dd945948a1780c9133149776dc3a4a5fe8381c7f0f9888dffa9f89</a></span></div>
+      <div class="row"><span class="k2">Ledger · closed</span><span class="v num">4175083 · 2026-08-16T16:19:36Z</span></div>
+      <div class="row"><span class="k2">Token</span><span class="v">XLM via OZ Confidential Token · CBFOJTALVTO3…WN7HF</span></div>
+      <div class="row"><span class="k2">Goods delivered</span><span class="v">"Stellar Settlement-Currency Brief" · sha256 16eaa288865246e9… · Ed25519-signed by VEGA · verified by NOVA</span></div>
+      <div class="row"><span class="k2">End-to-end</span><span class="v num">5 transactions · ledgers 4175079→4175083 · ~20s · proofs ≤1.8s each</span></div>
+    </div>
+  </div>
+
+  <h2>One payment, four views</h2>
+  <div class="views">
+    <div class="view"><span class="chip lock">public chain</span><h3>Any explorer, anyone</h3>
+      <p class="big">🔒 no amount</p>
+      <p>The chain holds elliptic-curve commitments only. VEGA's receiving balance, as the world sees it:</p>
+      <div class="commit">08326d3a0f82dbd1890114a7dac5ca41f097eb32…</div>
+    </div>
+    <div class="view"><span class="chip ok">recipient</span><h3>VEGA decrypts with its derived key</h3>
+      <p class="big">40 XLM</p>
+      <p>Rebuilt from public chain events + its own key (derived from one signature, nothing stored). Exact match with the invoice — this is how it knew to ship the goods.</p>
+    </div>
+    <div class="view"><span class="chip ok">sender</span><h3>NOVA decrypts its change</h3>
+      <p class="big">60 XLM</p>
+      <p>Remaining spendable after the payment, re-committed locally and <strong>verified byte-for-byte against the chain's commitments</strong> — the archive can't lie.</p>
+    </div>
+    <div class="view"><span class="chip gold">auditor #0</span><h3>Selective disclosure, by protocol</h3>
+      <p class="big">can decrypt</p>
+      <p>The transfer proof <em>will not verify</em> without ciphertexts for the auditor registered on-chain (registry CDCPR4AU…CHEK). We don't hold that key — the design's point is that the auditor does, and compliance visibility is structural, not voluntary.</p>
+    </div>
+  </div>
+
+  <h2>The commerce, as it happened</h2>
+  <div class="card"><ul class="timeline">
+    <li><span class="who">nova</span>Requesting product: latest settlement-currency brief. What's your price?</li>
+    <li><span class="who">vega</span>Quote: 40 XLM, payable confidentially — the amount will not appear on-chain.</li>
+    <li><span class="who">nova</span>Paying the invoice confidentially now. <span class="tx">→ tx 91a79853…</span></li>
+    <li><span class="who">vega</span>Payment verified: decrypted exactly 40 XLM received. Delivering goods.</li>
+    <li><span class="who">vega</span>Delivered: signed brief (live data: USDY $467M · USDC $446M · PYUSD $7.9M).</li>
+    <li><span class="who">nova</span>Goods received; signature verified. Transaction complete.</li>
+  </ul></div>
+
+  <h2>Chain trail</h2>
+  <div class="card"><div class="tw"><table>
+    <tr><th>step</th><th>tx</th><th>ledger</th><th>note</th></tr>
+    <tr><td>register NOVA</td><td class="tx"><a href="https://stellar.expert/explorer/testnet/tx/f375c4081ac36f8bf47361a98008bb697a7a561222aad327f5a9db4e29e0e118">f375c408…</a></td><td class="num">4175079</td><td>joins the confidential token, auditor #0 attached (proof 1.2s)</td></tr>
+    <tr><td>register VEGA</td><td class="tx"><a href="https://stellar.expert/explorer/testnet/tx/e98c0440f38b6cd372f8b32f409fc44662ed0406ef395cb1560325feca235c26">e98c0440…</a></td><td class="num">4175080</td><td>same (proof 1.0s)</td></tr>
+    <tr><td>deposit</td><td class="tx"><a href="https://stellar.expert/explorer/testnet/tx/055721dc5a2a1703fd8b06981f18f8bf2e68e6ac147e9d9b329a82ac57e44a8a">055721dc…</a></td><td class="num">4175081</td><td>100 XLM enters the contract — deposits are public by design</td></tr>
+    <tr><td>merge</td><td class="tx"><a href="https://stellar.expert/explorer/testnet/tx/fb6cd15eb8e5fa1194254ba8fba9d7a72eb182b933a79e462e4079c4b9e26045">fb6cd15e…</a></td><td class="num">4175082</td><td>receiving → spendable</td></tr>
+    <tr><td><strong>confidential transfer</strong></td><td class="tx"><a href="https://stellar.expert/explorer/testnet/tx/91a79853c7dd945948a1780c9133149776dc3a4a5fe8381c7f0f9888dffa9f89">91a79853…</a></td><td class="num">4175083</td><td><strong>the payment — amount encrypted, auditor ciphertext embedded (proof 1.8s)</strong></td></tr>
+  </table></div>
+  <p style="font-size:12px;color:var(--muted);margin:10px 0 0">Envelope XDRs for all five transactions are archived in <span class="k">receipt.json</span> — the receipts survive testnet resets.</p></div>
+
+  <h2>Built with Raven as copilot</h2>
+  <div class="card">
+    <p style="font-size:13.5px;margin:4px 0">Every step's "what would a cold builder ask?" question went to Raven first, logged with verdicts (<span class="k">raven-e6-buildlog.json</span>): <strong>2 helped · 3 missed</strong>. Raven routed general Soroban questions sharply (contract invocation scored 524, friendbot covered) — and missed all three confidential-stack questions at the <em>index level</em>: no source it holds knows OZ Confidential Tokens or the client SDK exist. Not a routing defect — a knowledge gap, and the exact one the corpus pack (D1) closes.</p>
+  </div>
+
+  <div class="footer">
+    <p><strong>What this is:</strong> to our knowledge, the first agent-to-agent commerce transaction on Stellar where the price settled confidentially — two autonomous agents, a quote, an encrypted payment, decryption-verified delivery, and a signed product, end to end in ~20 seconds on testnet.</p>
+    <p><strong>Credits &amp; caveats:</strong> contracts by OpenZeppelin (<span class="k">stellar-contracts</span> confidential package, testnet deployment); client SDK by aguilar1x (<span class="k">stellar-confidential-token-sdk</span> v0.1.9 — testnet only, not audited, do not hold value). Adapted from the SDK's live-payment example into the two-agent commerce flow. Testnet throughout; nothing here implies mainnet readiness or regulatory approval.</p>
+    <p>Code + receipt.json + Raven build log: <span class="k">Stellar-Light/agent-experiments · e6-confidential-commerce/</span> (private pending review).</p>
+  </div>
+</div>

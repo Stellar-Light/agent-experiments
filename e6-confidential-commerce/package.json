@@ -1,0 +1,9 @@
+{
+  "name": "e6-confidential-commerce",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@stellar/stellar-sdk": "^16.2.0",
+    "stellar-confidential-token-sdk": "^0.1.9"
+  }
+}

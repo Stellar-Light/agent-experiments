@@ -113,9 +113,21 @@ async function run() {
       return e;
     };
 
-    // the deal
-    const price = BigInt(1 + Math.floor(Math.random() * 9)) * STROOP;
-    const priceXlm = (price / STROOP).toString();
+    // the deal — user-set amount wins; blank = random
+    const parseXlm = (raw: string): bigint | null => {
+      const t = raw.trim();
+      if (!t) return null;
+      if (!/^\d+(\.\d{1,7})?$/.test(t)) throw new Error("amount must be XLM with up to 7 decimals, e.g. 3.7");
+      const [i, f = ""] = t.split(".");
+      const v = BigInt(i) * STROOP + BigInt((f + "0000000").slice(0, 7));
+      if (v <= 0n) throw new Error("amount must be positive");
+      if (v > 200n * STROOP) throw new Error("keep it ≤ 200 XLM — it's a shared testnet balance");
+      return v;
+    };
+    const custom = parseXlm(($("amt") as HTMLInputElement).value);
+    const price = custom ?? BigInt(1 + Math.floor(Math.random() * 9)) * STROOP;
+    const priceXlm = (Number(price) / 1e7).toString();
+    if (custom) sys(`price set by you: ${priceXlm} XLM — watch the seller decrypt exactly that`);
 
     bubble("nova", "Need the settlement brief. What's your price today?");
     await wait(700);
@@ -129,9 +141,10 @@ async function run() {
     let novaEngine = await rebuild(nova);
     let spendable = novaEngine.state().spendable;
     if (spendable.v < price + 2n * STROOP) {
-      sys("buyer balance low — depositing 100 XLM into the contract (deposits are public by design)");
+      const topup = price + 100n * STROOP;
+      sys(`buyer balance low — depositing ${(Number(topup) / 1e7).toString()} XLM into the contract (deposits are public by design)`);
       const dep = await client.invoke(SESSION.contracts.token, "deposit",
-        [addr(nova.address), addr(nova.address), i128(100n * STROOP)], novaSigner);
+        [addr(nova.address), addr(nova.address), i128(topup)], novaSigner);
       sys(`deposit tx ${dep.hash.slice(0, 10)}…`);
       const mrg = await client.invoke(SESSION.contracts.token, "merge", [addr(nova.address)], novaSigner);
       sys(`merge tx ${mrg.hash.slice(0, 10)}…`);
@@ -189,7 +202,18 @@ async function run() {
     status("done");
 
     // the receipt
-    receipt(pay.hash, priceXlm, (after.state().spendable.v / STROOP).toString());
+    receipt(pay.hash, priceXlm, (Number(after.state().spendable.v) / 1e7).toString());
+
+    // live panels: chain view vs decrypted view + history
+    try {
+      const vegaOn = await client.confidentialBalance(vega.address);
+      $("nova-commit").textContent = Buffer.from(pointToBytes(onchain.spendableBalance)).toString("hex").slice(0, 48) + "…";
+      $("vega-commit").textContent = Buffer.from(pointToBytes(vegaOn.receivingBalance)).toString("hex").slice(0, 48) + "…";
+      $("nova-dec").textContent = (Number(after.state().spendable.v) / 1e7).toString() + " XLM spendable";
+      $("vega-dec").textContent = (Number(vegaAfter) / 1e7).toString() + " XLM received (total)";
+      ($("balances") as HTMLElement).style.display = "";
+    } catch {}
+    pushHistory({ tx: pay.hash, amt: priceXlm, at: new Date().toISOString().slice(0, 16).replace("T", " ") });
   } catch (e: any) {
     sys(`error: ${e?.message ?? e} — if two people run this at once the balance state races; try again`, "");
     status("failed — try again");
@@ -238,6 +262,27 @@ CONTRACT ${SESSION.contracts.token}
 `;
   $("slip").scrollIntoView({ behavior: "smooth", block: "center" });
 }
+
+type Run = { tx: string; amt: string; at: string };
+function loadHistory(): Run[] { try { return JSON.parse(localStorage.getItem("runs") ?? "[]"); } catch { return []; } }
+function renderHistory() {
+  const runs = loadHistory();
+  if (!runs.length) return;
+  ($("histwrap") as HTMLElement).style.display = "";
+  $("history").innerHTML = runs.map((r) =>
+    `<li>${r.at} UTC · ${r.amt} XLM (hidden on-chain) · <a href="https://stellar.expert/explorer/testnet/tx/${r.tx}" target="_blank" rel="noreferrer">${r.tx.slice(0, 12)}…</a></li>`).join("");
+}
+function pushHistory(r: Run) {
+  const runs = [r, ...loadHistory()].slice(0, 12);
+  localStorage.setItem("runs", JSON.stringify(runs));
+  renderHistory();
+}
+renderHistory();
+const ln = $("l-nova") as HTMLAnchorElement, lv = $("l-vega") as HTMLAnchorElement;
+ln.href = `https://stellar.expert/explorer/testnet/account/${SESSION.nova.address}`;
+ln.textContent = SESSION.nova.address;
+lv.href = `https://stellar.expert/explorer/testnet/account/${SESSION.vega.address}`;
+lv.textContent = SESSION.vega.address;
 
 $("run").addEventListener("click", run);
 $("b-print").addEventListener("click", () => window.print());

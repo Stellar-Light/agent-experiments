@@ -25,6 +25,21 @@
   .runbar{display:flex;align-items:center;gap:14px;margin:22px 0 8px}
   button.run{font-family:var(--sans);font-size:14.5px;font-weight:600;padding:11px 22px;border-radius:999px;border:none;background:var(--ink);color:var(--bg);cursor:pointer}
   button.run:disabled{opacity:.45;cursor:default}
+  #amt{font-family:var(--mono);font-size:13px;padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);width:230px;max-width:45vw}
+  #amt:focus{outline:none;border-color:var(--ink)}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:16px 0}
+  .panel h2{font-size:13px;margin:0 0 10px;font-weight:600}
+  .bal{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .bal .cell{font-size:12px}
+  .bal .who{font-weight:600;font-size:12.5px;margin-bottom:4px}
+  .bal .commit{font-family:var(--mono);font-size:10px;color:var(--sub);word-break:break-all;margin:3px 0}
+  .bal .dec{font-family:var(--mono);font-size:12px;color:var(--ok)}
+  .hist{list-style:none;margin:0;padding:0}
+  .hist li{font-family:var(--mono);font-size:11.5px;padding:5px 0;border-bottom:1px solid var(--line)}
+  .hist li:last-child{border-bottom:none}
+  .hist a{color:var(--ink)}
+  .links{font-family:var(--mono);font-size:11px;line-height:2;color:var(--sub)}
+  .links a{color:var(--sub)}
   .status{font-family:var(--mono);font-size:11.5px;color:var(--sub)}
 
   .chat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 14px;min-height:120px;margin:14px 0}
@@ -76,6 +91,7 @@
     <h1>Confidential Agent Commerce</h1>
     <p class="sub">Two autonomous agents transact on Stellar testnet. The amount settles encrypted on-chain — the seller confirms payment by decrypting it, a registered auditor can always read it, everyone else sees nothing.</p>
     <div class="runbar">
+      <input id="amt" inputmode="decimal" placeholder="amount in XLM — blank = random" autocomplete="off">
       <button class="run" id="run">Run a real payment</button>
       <span class="status" id="status"></span>
     </div>
@@ -88,6 +104,29 @@
     <button id="b-print">Print / PDF</button>
     <button id="b-txt">TXT</button>
     <a id="b-tx" target="_blank" rel="noreferrer">View on explorer</a>
+  </div>
+
+  <div class="panel" id="balances" style="display:none">
+    <h2>The chain's view vs the agents' view — live</h2>
+    <div class="bal">
+      <div class="cell"><div class="who">NOVA · buyer</div><div>chain holds:</div><div class="commit" id="nova-commit"></div><div>NOVA decrypts:</div><div class="dec" id="nova-dec"></div></div>
+      <div class="cell"><div class="who">VEGA · seller</div><div>chain holds:</div><div class="commit" id="vega-commit"></div><div>VEGA decrypts:</div><div class="dec" id="vega-dec"></div></div>
+    </div>
+  </div>
+
+  <div class="panel" id="histwrap" style="display:none">
+    <h2>Payments made from this page</h2>
+    <ul class="hist" id="history"></ul>
+  </div>
+
+  <div class="panel">
+    <h2>Everything on testnet, inspectable</h2>
+    <div class="links">
+      token contract: <a href="https://stellar.expert/explorer/testnet/contract/CBFOJTALVTO3LPZZHEXDD44K7RQKQJGAASF6XOKP5FWZD6WYKV4WN7HF" target="_blank" rel="noreferrer">CBFOJTAL…WN7HF</a><br>
+      proof verifier: <a href="https://stellar.expert/explorer/testnet/contract/CBXEPTSEC3433EH3TKUZSSZCIWIDMGZDY2FB7BN5IJ76A2JISQF4YTN6" target="_blank" rel="noreferrer">CBXEPTSE…YTN6</a> · auditor registry: <a href="https://stellar.expert/explorer/testnet/contract/CDCPR4AURWJQRY4KXSRU7H7ABKIHTDORSQABIOUH37DU3IGYV5LRCHEK" target="_blank" rel="noreferrer">CDCPR4AU…CHEK</a><br>
+      NOVA account: <a id="l-nova" target="_blank" rel="noreferrer"></a><br>
+      VEGA account: <a id="l-vega" target="_blank" rel="noreferrer"></a>
+    </div>
   </div>
 
   <footer>

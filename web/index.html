@@ -3,98 +3,70 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Confidential Agent Commerce · Stellar testnet</title>
-<style>
-  :root{
-    --paper:#F2F1EC; --card:#FFFFFF; --ink:#1A1812; --muted:#6E6A5E; --line:#E4E1D5;
-    --gold:#8F7200; --good:#1E7A46; --good-soft:#E7F2EB; --lock:#5B4B8A; --lock-soft:#EFEBF7;
-    --blue:#2B5FAB;
-    --mono:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;
-    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
-  }
-  *{box-sizing:border-box}
-  html{background:var(--paper)}
-  body{font-family:var(--sans);background:var(--paper);color:var(--ink);margin:0;line-height:1.5;font-size:15px}
-  .wrap{max-width:700px;margin:0 auto;padding:36px 18px 90px}
-  .eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
-  h1{font-size:clamp(22px,4.5vw,30px);letter-spacing:-.02em;margin:8px 0 4px}
-  .sub{color:var(--muted);font-size:14px;margin:0 0 18px;max-width:58ch}
-  .tabs{display:flex;gap:8px;margin:18px 0 14px}
-  .tab{font-family:var(--mono);font-size:12px;letter-spacing:.05em;padding:8px 16px;border-radius:6px;border:1px solid var(--line);background:var(--card);cursor:pointer;color:var(--ink)}
-  .tab.active{border-color:var(--gold);color:var(--gold);font-weight:600}
-  .panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:22px}
-  .panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
-  .panel-head b{font-size:14px}
-  button.act{font-family:var(--mono);font-size:12px;letter-spacing:.06em;padding:8px 18px;border-radius:6px;border:1px solid var(--gold);background:transparent;color:var(--gold);cursor:pointer}
-  button.act:hover:not(:disabled){background:var(--gold);color:#fff}
-  button.act:disabled{opacity:.5;cursor:default}
-  .feed{min-height:56px;max-height:330px;overflow-y:auto;padding:2px 0}
-  .msg{padding:6px 0;font-size:13.5px;border-bottom:1px dashed var(--line);animation:fadein .3s}
-  .msg:last-child{border-bottom:none}
-  .who{font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-right:8px}
-  .chainline{font-family:var(--mono);font-size:11px;color:var(--blue)}
-  .okline{font-family:var(--mono);font-size:11.5px;color:var(--good)}
-  .lockline{font-family:var(--mono);font-size:11.5px;color:var(--lock)}
-  @keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1}}
-  .note{font-size:12px;color:var(--muted);margin-top:6px}
-  .slipwrap{display:flex;justify-content:center;margin:14px 0 8px}
-  .slip{background:#FFFFFF;color:#1A1812;width:400px;max-width:96%;border-radius:6px;box-shadow:0 10px 30px rgba(0,0,0,.14);padding:26px 26px 18px;font-family:var(--mono);font-size:12px;opacity:0;transform:translateY(-14px);transition:opacity .6s,transform .6s}
-  .slip.printed{opacity:1;transform:none}
-  .slip .brand{text-align:center;letter-spacing:.18em;font-size:11px;color:#6E6A5E}
-  .slip .title{text-align:center;font-size:14px;font-weight:700;margin:6px 0 2px}
-  .slip .net{text-align:center;font-size:10px;color:#6E6A5E;letter-spacing:.12em;text-transform:uppercase}
-  .cut{border:none;border-top:1.5px dashed #CFCBBD;margin:13px 0}
-  .lr{display:flex;justify-content:space-between;gap:14px;padding:3.5px 0}
-  .lr .l{color:#6E6A5E;white-space:nowrap}
-  .lr .r{text-align:right;word-break:break-all}
-  .bigrow{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0 2px}
-  .bigrow .amt{font-size:24px;font-weight:700}
-  .lockbox{background:#EFEBF7;color:#5B4B8A;border-radius:4px;padding:7px 9px;font-size:11px;margin:8px 0}
-  .okbox{background:#E7F2EB;color:#1E7A46;border-radius:4px;padding:7px 9px;font-size:11px;margin:8px 0}
-  .thanks{text-align:center;color:#6E6A5E;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;margin-top:10px}
-  .barcode{height:34px;margin:12px 4px 2px;background:repeating-linear-gradient(90deg,#1A1812 0 2px,transparent 2px 4px,#1A1812 4px 5px,transparent 5px 9px,#1A1812 9px 12px,transparent 12px 14px);border-radius:2px}
-  .exports{display:flex;gap:10px;justify-content:center;margin:14px 0 4px;flex-wrap:wrap}
-  .exports button,.exports a{font-family:var(--mono);font-size:11.5px;padding:7px 16px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;text-decoration:none}
-  .exports button:hover,.exports a:hover{border-color:var(--gold);color:var(--gold)}
-  .foot{font-size:12px;color:var(--muted);max-width:62ch;margin-top:24px}
-  a{color:var(--gold)}
-  @media print{ body>.wrap>*{display:none!important} .slipwrap{display:flex!important} .slip{box-shadow:none;opacity:1;transform:none} body{background:#fff} }
-  @media (prefers-color-scheme: dark){
-    :root{--paper:#121110;--card:#1B1A16;--ink:#ECE9E0;--muted:#9A968A;--line:#2C2A23;--gold:#E3C35B;--blue:#7FA7E0;--good:#58C389;--lock:#A995DD}
-  }
-</style>
+<title>Confidential Agent Commerce on Stellar</title>
+<meta name="description" content="Two autonomous agents completed a purchase on Stellar testnet whose price settled encrypted on-chain — with a receipt anyone can verify and an auditor who can still see.">
+<link rel="stylesheet" href="/shared.css">
 </head>
 <body>
-  <div class="wrap">
-    <div class="eyebrow">stellar-light · agent-experiments · e6</div>
-    <h1>Confidential Agent Commerce</h1>
-    <p class="sub">Two autonomous agents completed a purchase on Stellar testnet whose price settled <b>encrypted on-chain</b>. Replay it — or make <em>your own browser</em> decrypt the balances live from the chain.</p>
+<div class="wrap">
+  <nav>
+    <a class="home" href="/">⭑ E6</a>
+    <a href="/demo/" >demo</a>
+    <a href="/how/">how it works</a>
+    <a class="right" href="https://github.com/Stellar-Light/agent-experiments">github</a>
+  </nav>
 
-    <div class="tabs">
-      <button class="tab active" id="tab-sim">▶ Simulate</button>
-      <button class="tab" id="tab-live">⛓ Verify live in your browser</button>
-    </div>
+  <div class="eyebrow">agent-experiments · e6 · stellar testnet</div>
+  <h1>Two agents made a deal.<br>The price is nobody's business — and still auditable.</h1>
+  <p class="lede">On 2026-08-16, two autonomous agents completed a purchase on Stellar testnet. The buyer paid, the seller verified the money arrived and shipped the goods — and the amount they settled on <strong>appears nowhere on-chain</strong>. Not obscured. Not off-chain. Encrypted, with a designated auditor who can still read it.</p>
 
-    <div class="panel" id="panel-sim">
-      <div class="panel-head"><b>Replay — real session, real hashes</b><button class="act" id="btn-sim">▶ RUN</button></div>
-      <div class="feed" id="feed-sim"><div class="note">Press run: the actual testnet session replays message by message, then the receipt prints.</div></div>
-    </div>
-
-    <div class="panel" id="panel-live" style="display:none">
-      <div class="panel-head"><b>The real client, in this tab</b><button class="act" id="btn-live">⛓ DECRYPT LIVE</button></div>
-      <div class="feed" id="feed-live"><div class="note">Your browser will: derive the agents' confidential keys from the published testnet session → fetch the chain's events over RPC → rebuild and <b>decrypt</b> both balances → verify them byte-for-byte against the chain's own commitments. No server. The published secrets are testnet accounts holding nothing, published deliberately (the SDK demo's own precedent).</div></div>
-    </div>
-
-    <div class="slipwrap"><div class="slip" id="slip"></div></div>
-    <div class="exports" id="exports" style="visibility:hidden">
-      <button id="btn-print">🖨 PRINT / PDF</button>
-      <button id="btn-txt">TXT</button>
-      <button id="btn-json">JSON</button>
-      <a id="link-tx" target="_blank" rel="noreferrer">VIEW TX →</a>
-    </div>
-
-    <div class="foot" id="foot"></div>
+  <div class="btnrow">
+    <a class="btn solid" href="/demo/">▶ watch it &amp; decrypt it yourself</a>
+    <a class="btn" href="/how/">how it actually works</a>
   </div>
-  <script type="module" src="/src/main.ts"></script>
+
+  <h2>What happened, concretely</h2>
+  <p><strong>VEGA</strong>, a seller agent, quoted 40 XLM for a signed data product. <strong>NOVA</strong>, a buyer agent, paid that invoice through OpenZeppelin's Confidential Token contract on Stellar testnet. Open <a href="https://stellar.expert/explorer/testnet/tx/4f295698d3280af1c0a110377bb8350eeb895cef8e87fd5e764e60d167fbdbba">the payment transaction</a> on an explorer: there is no amount. The chain holds elliptic-curve commitments — points that bind the value without revealing it.</p>
+  <p>Then the interesting part: VEGA didn't take anyone's word that it was paid. It <strong>rebuilt its balance from public chain events and decrypted it with its own key</strong> — exactly 40 XLM — checked that against the invoice, and only then delivered the goods, signed. NOVA verified the signature. Five transactions, ledgers 4,175,209→4,175,214, about twenty seconds end to end, with each zero-knowledge proof generated in under two seconds on a laptop.</p>
+
+  <h2>Why agents need this</h2>
+  <p>Agent-to-agent commerce has a pricing problem: on a transparent chain, every negotiated price is public strategy. If your procurement agent pays 40 for what its rival paid 60 for, both numbers are on the record forever — every discount you negotiate, every margin you accept, readable by every competitor's agent in real time. Businesses do not run their purchasing in public, and neither will their agents.</p>
+  <p>But the fix cannot be full anonymity. Money that regulators and auditors cannot examine is money institutions cannot touch. The shape that works is the one this experiment demonstrates: <strong>amounts confidential to the world, decryptable by the parties — and by an auditor whose access is enforced by the protocol itself</strong>. The transfer proof literally refuses to verify unless it carries ciphertexts the registered auditor can decrypt. Compliance visibility isn't a promise here; it's a precondition of the money moving.</p>
+
+  <h2>One payment, four views</h2>
+  <div class="viewgrid">
+    <div class="viewcell"><div class="t">public chain</div><div class="v">🔒 nothing</div><div class="s">commitments only — no amount exists on-chain</div></div>
+    <div class="viewcell"><div class="t">seller (VEGA)</div><div class="v">40 XLM</div><div class="s">decrypted with its own derived key</div></div>
+    <div class="viewcell"><div class="t">buyer (NOVA)</div><div class="v">60 XLM</div><div class="s">its change, verified byte-for-byte vs the chain</div></div>
+    <div class="viewcell"><div class="t">auditor #0</div><div class="v">✓ can read</div><div class="s">the proof won't verify without its ciphertext</div></div>
+  </div>
+  <p>The <a href="/demo/">demo</a> doesn't replay a recording of this claim — its second mode runs the real client in <em>your</em> browser: it derives the agents' keys from the published testnet session, fetches the chain's events, decrypts both balances in front of you, and checks them against the chain's own commitments. About one second, no server.</p>
+
+  <h2>What this stands on, and what we added</h2>
+  <p>The cryptography is not ours, and the credits matter:</p>
+  <ul>
+    <li><strong><a href="https://github.com/OpenZeppelin/stellar-contracts">OpenZeppelin Confidential Tokens</a></strong> — the contracts: confidential balances, the UltraHonk verifier, and the auditor registry, deployed on Stellar testnet.</li>
+    <li><strong><a href="https://github.com/aguilar1x/stellar-confidential-token-sdk">stellar-confidential-token-sdk</a></strong> by aguilar1x — the conformant TypeScript client this experiment drives (v0.1.9): key derivation, proof generation, state replay, and the verify-against-chain trust boundary. Its own <a href="https://stellar-confidential-token-sdk-web.vercel.app/">site</a> is the deep reference for the primitive.</li>
+  </ul>
+  <p>What this experiment adds is the layer above the payment: <strong>a commerce protocol between autonomous agents</strong> — quote → confidential payment → the seller verifying receipt <em>by decryption</em> instead of by webhook or human confirmation → cryptographically signed delivery → signature verification by the buyer. Payment rails have demos; this is the primitive doing a job: two machines completing a deal with a private price and a public proof. To our knowledge, the first agent-to-agent commerce settled confidentially on Stellar.</p>
+
+  <h2>The honest limits</h2>
+  <ul>
+    <li><strong>Testnet, throughout.</strong> The client SDK is v0.1.x and unaudited; its own README says do not hold value with it. Nothing here implies mainnet readiness.</li>
+    <li><strong>Confidential ≠ anonymous.</strong> The <em>amount</em> is hidden; the participating addresses and the fact-of-payment are public. This is confidential amounts with auditability — not a mixer, and deliberately so.</li>
+    <li><strong>Deposits are public by design.</strong> Real XLM entering the contract is visible; privacy begins once value is inside, where balances live as commitments.</li>
+    <li><strong>The published session keys are deliberate</strong> — testnet accounts holding nothing, published so the demo can run the real client in your browser (the SDK demo's own precedent).</li>
+  </ul>
+
+  <div class="btnrow">
+    <a class="btn solid" href="/demo/">▶ run the demo</a>
+    <a class="btn" href="/how/">read the mechanics</a>
+    <a class="btn" href="https://github.com/Stellar-Light/agent-experiments">reproduce from source</a>
+  </div>
+
+  <div class="foot">
+    <p>An experiment from <a href="https://stellarlight.xyz">StellarLight</a>'s agent-experiments series — receipted probes into what autonomous agents can do on Stellar. Built with an AI copilot whose knowledge gaps were logged as part of the experiment (2 questions helped, 3 missed — the confidential stack is in no search index yet; details in the repo).</p>
+  </div>
+</div>
 </body>
 </html>

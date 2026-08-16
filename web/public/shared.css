@@ -1,0 +1,55 @@
+:root{
+  --paper:#F2F1EC; --card:#FFFFFF; --ink:#1A1812; --muted:#6E6A5E; --line:#E4E1D5;
+  --gold:#8F7200; --good:#1E7A46; --good-soft:#E7F2EB; --lock:#5B4B8A; --lock-soft:#EFEBF7;
+  --blue:#2B5FAB;
+  --mono:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{--paper:#121110;--card:#1B1A16;--ink:#ECE9E0;--muted:#9A968A;--line:#2C2A23;--gold:#E3C35B;--blue:#7FA7E0;--good:#58C389;--good-soft:#17281E;--lock:#A995DD;--lock-soft:#241D33}
+}
+*{box-sizing:border-box}
+html{background:var(--paper)}
+body{font-family:var(--sans);background:var(--paper);color:var(--ink);margin:0;line-height:1.6;font-size:15.5px}
+.wrap{max-width:720px;margin:0 auto;padding:34px 20px 90px}
+nav{display:flex;gap:18px;align-items:baseline;font-family:var(--mono);font-size:12px;letter-spacing:.05em;margin-bottom:34px;flex-wrap:wrap}
+nav .home{font-weight:700;letter-spacing:.12em;color:var(--ink);text-decoration:none}
+nav a{color:var(--muted);text-decoration:none}
+nav a:hover,nav a.here{color:var(--gold)}
+nav .right{margin-left:auto}
+.eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+h1{font-size:clamp(26px,5vw,38px);letter-spacing:-.02em;line-height:1.12;margin:10px 0 10px;text-wrap:balance}
+h2{font-size:19px;letter-spacing:-.01em;margin:44px 0 8px;text-wrap:balance}
+h3{font-size:15.5px;margin:26px 0 6px}
+p{margin:10px 0;max-width:68ch}
+.lede{font-size:17.5px;max-width:62ch}
+.muted{color:var(--muted)}
+a{color:var(--gold)}
+code,.k{font-family:var(--mono);font-size:.86em;background:var(--card);border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+pre{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.55}
+pre code{background:none;border:none;padding:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:14px 0}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:8px;margin:14px 0}
+table{border-collapse:collapse;width:100%;min-width:480px;background:var(--card)}
+th{font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);font-weight:500}
+td{padding:8px 12px;border-bottom:1px solid var(--line);font-size:13.5px;vertical-align:top}
+tr:last-child td{border-bottom:none}
+.chip{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:3px 9px;border-radius:3px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.chip.lock{background:var(--lock-soft);border-color:transparent;color:var(--lock)}
+.chip.ok{background:var(--good-soft);border-color:transparent;color:var(--good)}
+.btnrow{display:flex;gap:12px;margin:22px 0;flex-wrap:wrap}
+.btn{font-family:var(--mono);font-size:12.5px;letter-spacing:.05em;padding:10px 20px;border-radius:7px;border:1px solid var(--gold);color:var(--gold);text-decoration:none}
+.btn.solid{background:var(--gold);color:#fff}
+.btn:hover{text-decoration:none;filter:brightness(1.08)}
+.callout{border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:0 8px 8px 0;background:var(--card);padding:12px 16px;margin:18px 0;max-width:72ch}
+.callout.lock{border-left-color:var(--lock)}
+ul,ol{padding-left:22px;max-width:68ch}
+li{margin:7px 0}
+li::marker{color:var(--gold)}
+.foot{margin-top:60px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:12.5px;max-width:70ch}
+.seq{font-family:var(--mono);font-size:12px;line-height:1.9;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:14px 18px;overflow-x:auto;white-space:pre}
+.viewgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin:16px 0}
+.viewcell{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:13px 14px}
+.viewcell .t{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.viewcell .v{font-size:19px;font-weight:650;margin-top:4px}
+.viewcell .s{font-size:11.5px;color:var(--muted);margin-top:3px}

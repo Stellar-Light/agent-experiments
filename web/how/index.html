@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How it works · Confidential Agent Commerce</title>
+<meta name="description" content="The mechanics: commitments, derived keys, protocol-enforced auditor disclosure, decrypt-to-verify settlement, and the agent commerce protocol on top.">
+<link rel="stylesheet" href="/shared.css">
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <a class="home" href="/">⭑ E6</a>
+    <a href="/demo/">demo</a>
+    <a class="here" href="/how/">how it works</a>
+    <a class="right" href="https://github.com/Stellar-Light/agent-experiments">github</a>
+  </nav>
+
+  <div class="eyebrow">the mechanics, honestly</div>
+  <h1>How two agents traded at a price the chain can't read</h1>
+  <p class="lede">Everything below is the machinery behind <a href="https://stellar.expert/explorer/testnet/tx/4f295698d3280af1c0a110377bb8350eeb895cef8e87fd5e764e60d167fbdbba">one real testnet transaction</a>. Where the detail belongs to the underlying protocol, we say so and point at its specs — the primitive is OpenZeppelin's; the client is aguilar1x's <span class="k">stellar-confidential-token-sdk</span>; the commerce protocol on top is this experiment's.</p>
+
+  <h2>1 · Balances that are points, not numbers</h2>
+  <p>Inside the confidential token contract, your balance is not an integer anyone can read — it is an <strong>elliptic-curve commitment</strong>: a point that binds an amount together with a random <em>blinding factor</em>. Two properties make this useful:</p>
+  <ul>
+    <li><strong>Hiding.</strong> The point reveals nothing about the amount. The chain can hold your balance in public without holding your number.</li>
+    <li><strong>Additively homomorphic.</strong> Commitments add like the amounts they hide. When a transfer moves value, the chain adds and subtracts <em>points</em> — and the sums stay correct without the chain ever learning what was summed. That is how "a total everybody can audit" survives "an amount nobody can read."</li>
+  </ul>
+  <p>This is also why the client's bookkeeping is delicate: whoever holds the amount + blinding pair (the <em>opening</em>) can spend; whoever loses it holds money that cannot move. The SDK's whole architecture — replay, state engine, archive spec — exists to make openings recoverable from the chain plus one key. (The SDK team found a real bug here: blinding factors accumulated under the wrong modulus reconstruct perfectly for <em>one</em> payment and break on the eighth. Their writeup is worth reading.)</p>
+
+  <h2>2 · One signature is the whole wallet</h2>
+  <p>Neither agent stored a confidential key anywhere. Per the SDK's spec (<span class="k">SDK.md §5.1</span>), the confidential identity is <strong>derived</strong>: the agent's ordinary Stellar keypair signs a fixed SEP-0053 message for this contract, and that signature becomes the root from which everything else is computed — the secret key, the viewing key, the public viewing key <span class="k">PVK</span> that others encrypt <em>to</em>.</p>
+  <pre><code>const message = skSigningMessage(TOKEN_CONTRACT, agent.publicKey());
+const root    = agent.signMessage(message);        // the signature IS the root
+const { sk }  = deriveSk(root, TOKEN_CONTRACT, agent.publicKey());
+const keys    = deriveKeys(sk, ...);               // vk, PVK — deterministic, nothing stored</code></pre>
+  <p>Same signer, same keys, forever — an agent can be wiped and re-derive its entire confidential state from its Stellar key plus public chain history. For agent fleets this is the difference between key management and key <em>sprawl</em>.</p>
+
+  <h2>3 · Deposits are public. Transfers are not. That's deliberate.</h2>
+  <p>NOVA's 100 XLM deposit is visible on-chain — real XLM crossing into the contract has to be. Privacy begins <em>inside</em>: once deposited, value lives as commitments, and from there on, <strong>transfer amounts never surface again</strong>. The boundary is honest: the world can see who entered the confidential system and with how much in total, but not what any individual payment inside it was worth.</p>
+
+  <h2>4 · What the transfer proof actually proves</h2>
+  <p>When NOVA paid VEGA, it generated a zero-knowledge proof (UltraHonk, from Noir circuits — 1.8 seconds on a laptop) that convinced the on-chain verifier of, simultaneously:</p>
+  <ul>
+    <li>the transfer amount is validly encoded and within range (no overflow games),</li>
+    <li>NOVA's balance actually covers it — without revealing either number,</li>
+    <li>the new commitments for both parties are well-formed,</li>
+    <li>a ciphertext of the amount is included for VEGA's viewing key (so the recipient can read what it received),</li>
+    <li>and ciphertexts are included for <strong>the auditor's key</strong> — see the next section, because this is the part institutions should care about.</li>
+  </ul>
+  <p>The contract checks the proof against a verification key registered on-chain, extracted from OpenZeppelin's pinned circuit toolchain — so what verifies on testnet is their circuits, not a local variant.</p>
+
+  <h2>5 · The auditor is not optional</h2>
+  <p>Most privacy systems bolt on compliance as voluntary disclosure: the payer <em>may</em> reveal. Here the relationship is inverted. Each account registers under an auditor from an on-chain registry, and the transfer circuit <strong>constrains the auditor ciphertexts into the proof itself</strong> — a transfer that omits or garbles them is not a naughty transfer, it is an <em>invalid</em> one the verifier rejects. The auditor's ability to decrypt is a precondition of the money moving.</p>
+  <div class="callout lock">
+    <p><strong>Honesty note:</strong> in this experiment we are not auditor #0 and cannot show you that decryption. What we can show — and the proof's acceptance on-chain demonstrates — is that the ciphertext is there and correctly formed, because the transfer would not have verified otherwise.</p>
+  </div>
+
+  <h2>6 · Getting paid without trusting anyone's word</h2>
+  <p>The step that makes this <em>commerce</em> rather than a payment demo: how does the seller know it was paid? Not a webhook. Not a payment processor's callback. VEGA:</p>
+  <ol>
+    <li>fetches the contract's <strong>public events</strong> from RPC,</li>
+    <li>filters to its own history and replays it through the SDK's state engine,</li>
+    <li><strong>decrypts</strong> its receiving balance with its derived viewing key → exactly 40 XLM,</li>
+    <li>and — the trust boundary — <strong>re-commits its reconstructed state and compares it byte-for-byte against the commitments the chain itself holds</strong> (<span class="k">verifyAgainstChain</span>). An RPC, an archive, or an event feed can lie; the chain's own points can't be argued with.</li>
+  </ol>
+  <p>Only after that check passed did VEGA ship the goods. The settlement confirmation <em>is</em> cryptography, end to end. (The <a href="/demo/">demo's</a> live mode makes your browser do this exact sequence.)</p>
+
+  <h2>7 · The commerce protocol on top</h2>
+  <div class="seq">NOVA (buyer)                      VEGA (seller)
+     │  "price for the brief?"          │
+     │ ────────────────────────────────▶│
+     │          "40 XLM, confidential"  │
+     │ ◀────────────────────────────────│
+     │                                  │
+     │  deposit 100 XLM (public)        │
+     │  merge → spendable               │
+     │  prove + confidential_transfer ──┼──▶ ⛓ amount encrypted on-chain
+     │                                  │
+     │                                  │  replay events → decrypt → 40 ✓
+     │                                  │  verifyAgainstChain ✓
+     │        goods + Ed25519 signature │
+     │ ◀────────────────────────────────│
+     │  verify signature ✓              │
+     │  — deal complete —               │</div>
+  <p>Every message in that diagram happened and is logged; every ⛓ step has a transaction hash in the <a href="https://github.com/Stellar-Light/agent-experiments/tree/main/e6-confidential-commerce">receipt</a>, with envelope XDRs archived so the evidence outlives testnet resets.</p>
+
+  <h2>8 · Who sees what, precisely</h2>
+  <div class="tw"><table>
+    <tr><th>observer</th><th>sees</th><th>because</th></tr>
+    <tr><td>Anyone (explorer, indexer, rival agent)</td><td>that a transfer happened, between which addresses, and the commitment points</td><td>commitments hide the amount; the transaction graph is <em>not</em> hidden</td></tr>
+    <tr><td>VEGA (recipient)</td><td>40 XLM received</td><td>the proof carries a ciphertext to VEGA's <span class="k">PVK</span>; its derived viewing key decrypts it</td></tr>
+    <tr><td>NOVA (sender)</td><td>its own remaining 60 XLM</td><td>it holds its openings; it re-derives and chain-verifies them</td></tr>
+    <tr><td>Auditor #0</td><td>the amount, on demand</td><td>auditor ciphertexts are constrained into every valid transfer proof</td></tr>
+  </table></div>
+
+  <h2>9 · Limits and non-goals</h2>
+  <ul>
+    <li><strong>Not anonymity.</strong> Addresses, timing, and the existence of payments are public. Hiding <em>amounts</em> with auditor access is a different — and for institutions, more useful — property than hiding <em>everyone</em>.</li>
+    <li><strong>Testnet + unaudited client.</strong> The contracts are OpenZeppelin's testnet deployment; the client SDK is v0.1.9 and says plainly: do not hold value with it. So we don't.</li>
+    <li><strong>History depends on availability.</strong> RPC retention is finite; recovering old state needs an archive — which is why the SDK specs an indexer format whose answers the client verifies rather than trusts.</li>
+    <li><strong>Published session secrets are deliberate</strong> — testnet keys holding nothing, so the demo can run the real client in your browser instead of showing you precomputed numbers.</li>
+  </ul>
+
+  <h2>10 · Reproduce it</h2>
+  <pre><code>git clone https://github.com/Stellar-Light/agent-experiments
+cd agent-experiments/e6-confidential-commerce
+npm install
+node agents-commerce.mjs   # fresh agents, fresh receipts, ~60s</code></pre>
+  <p>Fresh keypairs are generated and friendbot-funded at runtime. The run prints every transaction hash and writes <span class="k">receipt.json</span> with the four views and archived XDRs.</p>
+
+  <h2>Sources</h2>
+  <ul>
+    <li>OpenZeppelin Confidential Tokens — <a href="https://github.com/OpenZeppelin/stellar-contracts">contracts</a> (confidential package: design docs, circuits, auditor example)</li>
+    <li>aguilar1x — <a href="https://github.com/aguilar1x/stellar-confidential-token-sdk">stellar-confidential-token-sdk</a> and its <a href="https://stellar-confidential-token-sdk-web.vercel.app/">site</a> (SDK.md, INDEXER.md, the defect writeups this page references)</li>
+    <li>This experiment — <a href="https://github.com/Stellar-Light/agent-experiments">agent-experiments/e6</a>: the commerce script, receipts, and the AI-copilot build log</li>
+  </ul>
+
+  <div class="foot">
+    <p>Testnet throughout. Nothing on this page is a security claim about mainnet, a compliance certification, or investment anything. It is a receipt-backed description of one experiment, written so the next builder starts further ahead than we did.</p>
+  </div>
+</div>
+</body>
+</html>

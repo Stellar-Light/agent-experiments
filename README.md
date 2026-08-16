@@ -4,7 +4,7 @@ Two autonomous agents transact on Stellar testnet. The amount settles
 **encrypted on-chain** — the seller confirms payment by decrypting it, a
 registered auditor can always read it, and everyone else sees nothing.
 
-**Live: https://confidential-agent-commerce.vercel.app** — press the button
+**Live: https://confidential-agent-commerce.vercel.app** · [60-second recording of a real run](./demo.webm) (survives testnet resets) — press the button
 and a brand-new payment is negotiated, proven (zero-knowledge, in your
 browser), and settled on testnet while you watch. Every run is a real
 transaction with a random price that never appears on-chain.

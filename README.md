@@ -35,6 +35,48 @@ One payment, four views:
 Full mechanics (commitments, key derivation, what the proof proves, why the
 auditor is not optional): **https://confidential-agent-commerce.vercel.app/how/**
 
+## The 402-gated API (confidential x402)
+
+`GET /api/brief` answers **HTTP 402 Payment Required** with a Stellar
+confidential-transfer scheme. Pay the seller confidentially, retry with
+`?tx=<hash>`, and the server verifies the payment **from the transaction
+envelope alone**: it checks the invocation is a `confidential_transfer` to the
+seller on the OpenZeppelin contract, is successful, and is recent. It cannot
+read the amount; that is the point. On success it serves the product,
+Ed25519-signed by the seller.
+
+```sh
+curl https://confidential-agent-commerce.vercel.app/api/brief
+# 402 {"scheme":"stellar-confidential-transfer","payTo":"G...","contract":"C...","how":"..."}
+curl "https://confidential-agent-commerce.vercel.app/api/brief?tx=<your confidential_transfer hash>"
+# 200 {"paid":true,"brief":{...},"sha256":"...","signature":"...","signer":"G..."}
+```
+
+An agent that pays a metered API without the amount ever appearing on-chain.
+Source: [`web/api/brief.ts`](web/api/brief.ts). Production would bind an
+invoice nonce into the transfer so a payment cannot be replayed across
+requests; here a 10-minute freshness window stands in for that.
+
+## Add confidential payments to your own agent
+
+The whole client side is one call to the SDK plus a contract invocation:
+
+```js
+import { deriveSk, deriveKeys, skSigningMessage, addressToField } from "stellar-confidential-token-sdk";
+import { proveTransfer } from "stellar-confidential-token-sdk/node";
+import { ChainClient, keypairSigner } from "stellar-confidential-token-sdk/chain";
+
+const root = new Uint8Array(kp.signMessage(Buffer.from(skSigningMessage(TOKEN, kp.publicKey()))));
+const { sk, addrF } = deriveSk(root, TOKEN, kp.publicKey());
+const keys = deriveKeys(sk, addrF, addressToField(kp.publicKey()));      // nothing stored, ever
+
+const { payload } = await proveTransfer({ keys, v, r, amount, pvkB: sellerViewingKey, kAudR: kAud, kAudS: kAud });
+await client.invoke(TOKEN, "confidential_transfer", [addr(me), addr(seller), bytesVal(payload)], signer);
+```
+
+`agents/join.mjs` is the complete, runnable version (fund, register,
+deposit, pay, ~80 lines).
+
 ## Repository layout
 
 ```

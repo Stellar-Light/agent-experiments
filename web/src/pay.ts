@@ -271,16 +271,16 @@ function receipt(tx: string, priceXlm: string, changeXlm: string) {
     <div class="t2">stellar testnet, confidential transfer</div>
     <hr class="cut">
     <div class="lr"><span class="l">DATE</span><span class="r">${dt}</span></div>
-    <div class="lr"><span class="l">FROM</span><span class="r">${agentName("pip")} ${SESSION.nova.address.slice(0, 6)}…${SESSION.nova.address.slice(-4)}</span></div>
-    <div class="lr"><span class="l">TO</span><span class="r">${agentName("momo")} ${SESSION.vega.address.slice(0, 6)}…${SESSION.vega.address.slice(-4)}</span></div>
+    <div class="lr"><span class="l">FROM</span><span class="r">${agentName("pip")} <a href="https://stellar.expert/explorer/testnet/account/${SESSION.nova.address}" target="_blank" rel="noreferrer">${SESSION.nova.address.slice(0, 6)}…${SESSION.nova.address.slice(-4)}</a></span></div>
+    <div class="lr"><span class="l">TO</span><span class="r">${agentName("momo")} <a href="https://stellar.expert/explorer/testnet/account/${SESSION.vega.address}" target="_blank" rel="noreferrer">${SESSION.vega.address.slice(0, 6)}…${SESSION.vega.address.slice(-4)}</a></span></div>
     <hr class="cut">
     <div class="bigrow"><span>AMOUNT ON-CHAIN</span><span class="amt">ENCRYPTED</span></div>
     <div class="decr">SELLER DECRYPTED: +${priceXlm} XLM (exact match)<br>BUYER CHANGE: ${changeXlm} XLM, chain-verified</div>
     <div class="lr"><span class="l">AUDITOR</span><span class="r">#${SESSION.auditorId}, can decrypt, enforced by the proof</span></div>
     <div class="lr"><span class="l">FEE</span><span class="r">≈0.02–0.05 XLM (proof verification)</span></div>
     <hr class="cut">
-    <div class="lr"><span class="l">TX</span><span class="r">${tx}</span></div>
-    <div class="lr"><span class="l">CONTRACT</span><span class="r">${SESSION.contracts.token.slice(0, 10)}… (OpenZeppelin)</span></div>
+    <div class="lr"><span class="l">TX</span><span class="r"><a href="https://stellar.expert/explorer/testnet/tx/${tx}" target="_blank" rel="noreferrer">${tx}</a></span></div>
+    <div class="lr"><span class="l">CONTRACT</span><span class="r"><a href="https://stellar.expert/explorer/testnet/contract/${SESSION.contracts.token}" target="_blank" rel="noreferrer">${SESSION.contracts.token.slice(0, 10)}…</a> (OpenZeppelin)</span></div>
     <div class="lr"><span class="l">PROOF</span><span class="r">UltraHonk, generated in this browser</span></div>`;
   const slip = $("slip");
   slip.classList.add("printed");

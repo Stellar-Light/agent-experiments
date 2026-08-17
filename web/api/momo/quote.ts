@@ -4,7 +4,7 @@
  * negotiate; Momo accepts at or above its private floor, otherwise declines
  * without revealing the floor. Every quote is signed by Momo and expires.
  */
-import { momoBooks, policyQuote, considerOffer, signGoods, STROOP, merchantById } from "../../lib/momo.js";
+import { momoBooks, quoteFor, considerOffer, signGoods, merchantById } from "../../lib/momo.js";
 import { issueInvoice } from "../../lib/invoice.js";
 
 export default async function handler(req: any, res: any) {
@@ -17,10 +17,10 @@ export default async function handler(req: any, res: any) {
     const MOMO = M.address;
     const buyer = String(body.buyer ?? "");
     const offer = body.offer != null ? BigInt(Math.round(Number(body.offer) * 1e7)) : null;
-    const { inbound } = await momoBooks(M);
-    const latest = inbound.length ? Math.max(...inbound.map((e: any) => e.ledger)) : 0;
-    const recent = inbound.filter((e: any) => latest - e.ledger < 720).length; // ~1 hour of ledgers
-    const p = policyQuote(inbound.length, recent, { listXlm: M.listXlm, floorXlm: M.floorXlm, surgePerPaymentXlm: M.surgePerPaymentXlm, surgeCapXlm: M.surgeCapXlm, name: M.name, product: M.product });
+    const books = await momoBooks(M);
+    const { inbound } = books;
+    const p = quoteFor(M, books);
+    const recent = p.recent;
     const expiresAt = Date.now() + 5 * 60_000;
     if (offer != null) {
       const verdict = considerOffer(offer, p.floor);

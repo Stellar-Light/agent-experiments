@@ -47,7 +47,7 @@ export async function momoBooks(m: MerchantProfile = MERCHANTS.momo) {
   const ME = m.address;
   const cp = await loadCheckpoint(ME);
   const from = cp ? Math.max(SESSION.fromLedger, cp.savedAtLedger - 50) : SESSION.fromLedger;
-  const { events } = await hybridFetchEvents(client, undefined, { fromLedger: from });
+  const { events, latestLedger } = await hybridFetchEvents(client, undefined, { fromLedger: from });
   const mine = events.filter((ev: any) =>
     ev.type === "register" || ev.type === "merge" ? ev.account === ME : ev.from === ME || ev.to === ME);
   const eng = new StateEngine({ address: ME, keys: keys(m), store: cp ? { load: async () => cp.state, save: async () => {} } : undefined });
@@ -59,7 +59,17 @@ export async function momoBooks(m: MerchantProfile = MERCHANTS.momo) {
   // inbound list = checkpoint's remembered inbound + fresh inbound (for the ledger/feed)
   const inboundFresh = fresh.filter((e: any) => e.type === "transfer" && e.to === ME) as any[];
   const inbound = [...(cp?.inbound ?? []), ...inboundFresh];
-  return { receivedTotal, inbound, engine: eng, events: mine, checkpoint: cp ? { savedAt: cp.savedAt, savedAtLedger: cp.savedAtLedger } : null, replayFrom: from };
+  return { receivedTotal, inbound, engine: eng, events: mine, nowLedger: latestLedger, checkpoint: cp ? { savedAt: cp.savedAt, savedAtLedger: cp.savedAtLedger } : null, replayFrom: from };
+}
+
+/** Payments in the last ~hour of LEDGERS (720 at ~5s), measured from the chain head, so a quiet hour cools the price. */
+export function recentCount(books: { inbound: any[]; nowLedger: number }) {
+  return books.inbound.filter((e: any) => books.nowLedger - e.ledger < 720).length;
+}
+/** The merchant's live quote from its own decrypted books and its (visitor-configurable) price profile. */
+export function quoteFor(M: MerchantProfile, books: { inbound: any[]; nowLedger: number }) {
+  const recent = recentCount(books);
+  return { ...policyQuote(books.inbound.length, recent, { listXlm: M.listXlm, floorXlm: M.floorXlm, surgePerPaymentXlm: M.surgePerPaymentXlm, surgeCapXlm: M.surgeCapXlm, name: M.name, product: M.product }), recent };
 }
 
 /**

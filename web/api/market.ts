@@ -3,7 +3,7 @@
  * The thing a shopping buyer reads before choosing whom to do business with.
  * Track record = from the chain, decrypted by each merchant's own key.
  */
-import { MERCHANTS, momoBooks, policyQuote } from "../lib/momo.js";
+import { MERCHANTS, momoBooks, quoteFor } from "../lib/momo.js";
 import { applyConfig } from "../lib/merchants.js";
 export default async function handler(req: any, res: any) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -12,10 +12,10 @@ export default async function handler(req: any, res: any) {
     // per-merchant configs: ?cfg_momo=<b64>&cfg_kiki=<b64>
     const rows = await Promise.all(Object.values(MERCHANTS).map(async (M0) => {
       const M = applyConfig(M0, req.query?.[`cfg_${M0.id}`]);
-      const { inbound, receivedTotal } = await momoBooks(M);
-      const latest = inbound.length ? Math.max(...inbound.map((e: any) => e.ledger)) : 0;
-      const recent = inbound.filter((e: any) => latest - e.ledger < 720).length;
-      const p = policyQuote(inbound.length, recent, { listXlm: M.listXlm, floorXlm: M.floorXlm, surgePerPaymentXlm: M.surgePerPaymentXlm, surgeCapXlm: M.surgeCapXlm, name: M.name, product: M.product });
+      const books = await momoBooks(M);
+      const { inbound, receivedTotal } = books;
+      const p = quoteFor(M, books);
+      const recent = p.recent;
       const customers = new Set(inbound.map((e: any) => e.from)).size;
       return { id: M.id, name: M.name, address: M.address, product: M.product, quoteXlm: Number(p.quote) / 1e7, rationale: p.rationale,
         terms: { minTicketXlm: M.minTicketXlm, maxPaymentsPerCustomerPerHour: M.maxPaymentsPerCustomerPerHour },

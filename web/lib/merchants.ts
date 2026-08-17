@@ -23,8 +23,8 @@ export function merchantById(id: string | undefined, cfg?: any): MerchantProfile
 /**
  * Visitor-configured behavior. The merchant's IDENTITY (key, address, on-chain
  * registration) is fixed; its BEHAVIOR (list price, private floor, surge,
- * min ticket, velocity) can be configured per session by the person running
- * the experiment, within bounds. The config travels with each request
+ * surge cap) can be configured per session by the person running the
+ * experiment, within bounds; its TERMS cannot (see below). The config travels with each request
  * (?cfg=<base64 json>) so the negotiation, the till, and the market board all
  * see the same shop the buyer is talking to. Bounds keep the shared testnet
  * balances sane.
@@ -40,8 +40,10 @@ export function applyConfig(base: MerchantProfile, cfg: any): MerchantProfile {
     floorXlm: num(c.floorXlm, 0.1, 50, base.floorXlm),
     surgePerPaymentXlm: num(c.surgePerPaymentXlm, 0, 5, base.surgePerPaymentXlm),
     surgeCapXlm: num(c.surgeCapXlm, 0, 20, base.surgeCapXlm),
-    minTicketXlm: num(c.minTicketXlm, 0, 20, base.minTicketXlm),
-    maxPaymentsPerCustomerPerHour: Math.round(num(c.maxPaymentsPerCustomerPerHour, 1, 50, base.maxPaymentsPerCustomerPerHour)),
+    // TERMS (min ticket, velocity, blocklist) are deliberately NOT configurable: a verdict at the till must be a
+    // pure function of chain facts + the merchant's signed terms, or the refund worker cannot re-derive it later
+    // (it would either refund delivered goods under stricter terms or strand funds under looser ones).
+    // Pricing is the shop's mood, yours to set. Terms are the shop's contract, fixed and signed.
   };
   if (out.floorXlm > out.listXlm) out.floorXlm = out.listXlm; // a floor above the list is not a shop
   return out;

@@ -34,7 +34,7 @@ function ensureName(side: "pip" | "momo") {
   const n = document.createElement("div");
   n.className = `name ${side === "pip" ? "pip" : ""}`;
   n.style.textAlign = side === "pip" ? "right" : "left";
-  const who = side === "pip" ? SESSION.pip.address : SESSION.momo.address;
+  const who = side === "pip" ? SESSION.pip.address : ((window as any).__sellerAddr ?? SESSION.momo.address);
   const face = `<img src="${blobAvatar(who)}" width="20" height="20" style="vertical-align:-5px;border-radius:50%">`;
   n.innerHTML = side === "pip"
     ? `${agentName("pip")} (buyer) <span style="margin-left:5px">${face}</span>`
@@ -79,30 +79,43 @@ function agentName(k: string): string {
 }
 
 async function renderFeed() {
+  // the market board: every merchant's live quote, terms and track record, plus Pip's own notebook against those terms
   try {
-    const f = await fetch("/api/momo/feed").then((r) => r.json());
-    const ul = document.getElementById("feedlist"); if (!ul) return;
-    const rows = (f.customers ?? []).slice(0, 8).map((c: any) => {
-      const who = c.address === SESSION.pip.address ? "Pip (this page)" : (c.name ? c.name : "agent " + c.address.slice(0, 6) + "…");
-      return `<li><img src="${blobAvatar(c.address, 16)}" width="16" height="16" style="vertical-align:-3px;border-radius:50%;margin-right:6px">${who}: ${c.payments} payment${c.payments === 1 ? "" : "s"}, ${(+c.totalXlm).toFixed(2)} XLM decrypted, last ledger ${c.lastLedger} <a href="https://stellar.expert/explorer/testnet/account/${c.address}" target="_blank" rel="noreferrer">↗</a></li>`;
-    });
-    ul.innerHTML = rows.join("") + `<li style="color:var(--sub)">${f.paymentsTotal} payments, ${(+f.receivedXlm).toFixed(2)} XLM received in total</li>`;
-  } catch { const ul = document.getElementById("feedlist"); if (ul) ul.innerHTML = "<li style='color:var(--sub)'>feed unavailable</li>"; }
+    const mk = await fetch(`/api/market?cfg_momo=${merchantCfg("momo")}&cfg_kiki=${merchantCfg("kiki")}`).then((r) => r.json());
+    const ul = document.getElementById("board");
+    if (ul) ul.innerHTML = (mk.merchants ?? []).map((m: any) => {
+      const mine = myPaidLastHour(m.id);
+      return `<li><img src="${blobAvatar(m.address, 16)}" width="16" height="16" style="vertical-align:-3px;border-radius:50%;margin-right:6px"><b>${m.name}</b> quotes ${m.quoteXlm} XLM (${m.rationale}); ${m.trackRecord.payments} payments, ${m.trackRecord.lastHour} in the last hour, ${m.trackRecord.customers} customers; terms: min ${m.terms.minTicketXlm} XLM, max ${m.terms.maxPaymentsPerCustomerPerHour}/customer/hour, Pip ${mine}/${m.terms.maxPaymentsPerCustomerPerHour} this hour</li>`;
+    }).join("") || "<li style='color:var(--sub)'>market unavailable</li>";
+  } catch { const ul = document.getElementById("board"); if (ul) ul.innerHTML = "<li style='color:var(--sub)'>market unavailable</li>"; }
+  for (const mid of ["momo", "kiki"]) {
+    try {
+      const f = await fetch(`/api/momo/feed?merchant=${mid}`).then((r) => r.json());
+      const ul = document.getElementById(`feedlist-${mid}`); if (!ul) continue;
+      const rows = (f.customers ?? []).slice(0, 6).map((c: any) => {
+        const who = c.address === SESSION.pip.address ? "Pip (this page)" : (c.name ? c.name : "agent " + c.address.slice(0, 6) + "…");
+        return `<li><img src="${blobAvatar(c.address, 16)}" width="16" height="16" style="vertical-align:-3px;border-radius:50%;margin-right:6px">${who}: ${c.payments} payment${c.payments === 1 ? "" : "s"}, ${(+c.totalXlm).toFixed(2)} XLM decrypted, last ledger ${c.lastLedger} <a href="https://stellar.expert/explorer/testnet/account/${c.address}" target="_blank" rel="noreferrer">↗</a></li>`;
+      });
+      ul.innerHTML = rows.join("") + `<li style="color:var(--sub)">${DEFAULT_NAMES[mid]}: ${f.paymentsTotal} payments, ${(+f.receivedXlm).toFixed(2)} XLM received in total</li>`;
+    } catch { const ul = document.getElementById(`feedlist-${mid}`); if (ul) ul.innerHTML = "<li style='color:var(--sub)'>feed unavailable</li>"; }
+  }
 }
 renderFeed();
 
 // ── configure the agents: read the panel, persist, and expose cfg for merchant calls ──
-const CFG_KEYS = ["pip-budget","pip-style","pip-shop","pip-rounds","momo-list","momo-floor","momo-surge","momo-cap","momo-min","momo-vel","kiki-list","kiki-floor","kiki-surge","kiki-cap","kiki-min","kiki-vel"];
+const CFG_KEYS = ["pip-budget","pip-style","pip-shop","pip-rounds","pip-proto","pip-every","pip-limits","momo-list","momo-floor","momo-surge","momo-cap","kiki-list","kiki-floor","kiki-surge","kiki-cap"];
+const CFG_LABELS: Record<string, string> = { "pip-budget": "Pip budget", "pip-style": "Pip style", "pip-shop": "Pip shopping", "pip-rounds": "Pip rounds", "pip-proto": "Pip protocol", "pip-every": "tick every", "pip-limits": "Pip respects hourly limits", "momo-list": "Momo list", "momo-floor": "Momo floor", "momo-surge": "Momo surge", "momo-cap": "Momo surge cap", "kiki-list": "Kiki list", "kiki-floor": "Kiki floor", "kiki-surge": "Kiki surge", "kiki-cap": "Kiki surge cap" };
+const cfgVal = (k: string) => { const el = document.getElementById("c-" + k) as HTMLInputElement | null; return !el ? "" : el.type === "checkbox" ? String(el.checked) : el.value; };
 function cfgLoad() {
   try {
     const saved = JSON.parse(localStorage.getItem("agentcfg") || "{}");
-    for (const k of CFG_KEYS) { const el = document.getElementById("c-" + k) as HTMLInputElement | HTMLSelectElement | null; if (el && saved[k] != null) el.value = saved[k]; }
+    for (const k of CFG_KEYS) { const el = document.getElementById("c-" + k) as HTMLInputElement | null; if (el && saved[k] != null) { if (el.type === "checkbox") el.checked = saved[k] !== "false"; else el.value = saved[k]; } }
   } catch {}
   cfgSync();
 }
 function cfgSave() {
   const out: any = {};
-  for (const k of CFG_KEYS) { const el = document.getElementById("c-" + k) as HTMLInputElement | null; if (el) out[k] = el.value; }
+  for (const k of CFG_KEYS) out[k] = cfgVal(k);
   try { localStorage.setItem("agentcfg", JSON.stringify(out)); } catch {}
   cfgSync();
 }
@@ -114,8 +127,15 @@ function cfgSync() {
 }
 export function merchantCfg(id: "momo" | "kiki") {
   const g = (k: string) => (document.getElementById(`c-${id}-${k}`) as HTMLInputElement | null)?.value;
-  const c = { listXlm: g("list"), floorXlm: g("floor"), surgePerPaymentXlm: g("surge"), surgeCapXlm: g("cap"), minTicketXlm: g("min"), maxPaymentsPerCustomerPerHour: g("vel") };
+  const c = { listXlm: g("list"), floorXlm: g("floor"), surgePerPaymentXlm: g("surge"), surgeCapXlm: g("cap") };
   return btoa(JSON.stringify(c));
+}
+export function pipProto(): "negotiate" | "mpp" { return ((document.getElementById("c-pip-proto") as HTMLSelectElement | null)?.value === "mpp") ? "mpp" : "negotiate"; }
+export function pipEvery() { const v = Number((document.getElementById("c-pip-every") as HTMLSelectElement | null)?.value); return Number.isFinite(v) && v >= 30 ? v : 60; }
+/** Pip's notebook: how many times each merchant has served Pip in the last hour, from this browser's own record. */
+function myPaidLastHour(mid: string) {
+  const cut = Date.now() - 3600_000;
+  return loadHistory().filter((r) => (r.mid ?? "momo") === mid && (r.ts ?? Date.parse(r.at.replace(" ", "T") + ":00Z")) > cut).length;
 }
 export function pipRounds() { const v = Number((document.getElementById("c-pip-rounds") as HTMLInputElement | null)?.value); return Number.isFinite(v) && v >= 1 ? Math.min(6, Math.round(v)) : 3; }
 document.addEventListener("DOMContentLoaded", () => {
@@ -144,12 +164,18 @@ async function xlmUsdRate(sdk: any): Promise<number> {
 
 // ── the run ─────────────────────────────────────────────────────────────────
 let running = false;
-async function run() {
+async function run(tick = 0, afterHeader?: () => void) {
   if (running) return;
   running = true;
   const btn = $("run") as HTMLButtonElement;
   btn.disabled = true;
-  $("chat").innerHTML = "";
+  if (tick) {
+    const chat = $("chat");
+    chat.querySelector(".empty")?.remove();
+    while (chat.children.length > 160) chat.firstElementChild?.remove();
+    sys(`tick ${tick}, ${new Date().toISOString().slice(11, 19)} UTC`, "tick");
+    afterHeader?.();
+  } else { $("chat").innerHTML = ""; }
   lastSide = "";
   $("slip").classList.remove("printed");
   const mask0 = document.getElementById("feedmask") as HTMLElement | null; if (mask0) { mask0.style.height = "0px"; mask0.classList.remove("printing"); }
@@ -180,7 +206,7 @@ async function run() {
       return { keys: deriveKeys(sk, addrF, addressToField(kp.publicKey())), address: kp.publicKey() };
     };
     const pip = ident(pipKp);
-    const momo = ident(momoKp);
+    void momoKp;
     const pipSigner = keypairSigner(pipKp.secret(), PASSPHRASE);
 
     const mine = (address: string, events: any[]) => events.filter((ev) =>
@@ -236,20 +262,32 @@ async function run() {
     let chosen: any = null;
     try {
       const mk = await fetch(`/api/market?cfg_momo=${merchantCfg("momo")}&cfg_kiki=${merchantCfg("kiki")}`).then((r) => r.json());
-      const rows: any[] = mk.merchants ?? [];
+      const all: any[] = mk.merchants ?? [];
+      sys(`market: ${all.map((r) => `${r.name} ${r.quoteXlm} XLM (${r.trackRecord.payments} payments, ${r.trackRecord.customers} customers, min ticket ${r.terms.minTicketXlm}, max ${r.terms.maxPaymentsPerCustomerPerHour}/hour)`).join(", ")}`);
+      // Pip holds itself to the terms it read: a merchant that has served it the hourly maximum is off the list this tick
+      const respect = (document.getElementById("c-pip-limits") as HTMLInputElement | null)?.checked ?? true;
+      const capped = respect ? all.filter((r) => myPaidLastHour(r.id) >= r.terms.maxPaymentsPerCustomerPerHour) : [];
+      if (!respect) { const over = all.filter((r) => myPaidLastHour(r.id) >= r.terms.maxPaymentsPerCustomerPerHour); if (over.length) sys(`directive: Pip is ignoring its notebook this tick (${over.map((r) => `${r.name} ${myPaidLastHour(r.id)}/${r.terms.maxPaymentsPerCustomerPerHour}`).join(", ")}). Expect the till to decline and the refund path to run.`); }
+      const rows = all.filter((r) => !capped.includes(r));
+      if (capped.length) sys(`Pip's notebook: ${capped.map((r) => `${r.name} has served Pip ${myPaidLastHour(r.id)} of ${r.terms.maxPaymentsPerCustomerPerHour} this hour`).join("; ")}. Pip will not pay a shop past the terms it read.`);
+      if (!rows.length) {
+        sys(`every merchant has served Pip its hourly maximum. Paying again would be declined at the till and refunded, so Pip sits this one out. Raise "max / hour" in Configure the agents to change the terms.`);
+        status("sitting out"); return;
+      }
       const shopPolicy = (($("shop") as HTMLSelectElement | null)?.value ?? "cheapest") as "cheapest" | "trusted" | "momo" | "kiki";
       const trusted = rows.filter((r) => r.trackRecord.payments >= 3);
       if (shopPolicy === "momo" || shopPolicy === "kiki") chosen = rows.find((r) => r.id === shopPolicy) ?? rows[0];
       else if (shopPolicy === "trusted") chosen = (trusted.length ? trusted : rows).sort((a, b) => b.trackRecord.payments - a.trackRecord.payments)[0];
       else chosen = [...rows].sort((a, b) => a.quoteXlm - b.quoteXlm)[0];
-      sys(`market: ${rows.map((r) => `${r.name} ${r.quoteXlm} XLM (${r.trackRecord.payments} payments, ${r.trackRecord.customers} customers, min ticket ${r.terms.minTicketXlm})`).join(" · ")}`);
-      sys(`Pip's shopping policy "${shopPolicy}" picks ${chosen.name}: ${chosen.rationale}`);
+      sys(`Pip's shopping policy "${shopPolicy}" picks ${chosen.name}: ${chosen.rationale}${(shopPolicy === "momo" || shopPolicy === "kiki") && chosen.id !== shopPolicy ? ` (${shopPolicy} is capped for Pip this hour)` : ""}`);
     } catch { chosen = { id: "momo", name: "Momo" }; sys("market unavailable, defaulting to Momo"); }
     const MID = chosen.id as string;
     const SELLER = MID === "kiki" ? (SESSION as any).kiki : SESSION.momo;
     (window as any).__sellerName = chosen.name;
+    (window as any).__sellerAddr = SELLER.address;
     const sellerKp = Keypair.fromSecret(SELLER.secret);
     const seller = ident(sellerKp);
+    const proto = pipProto();
 
     // ── Pip reads the chosen merchant's signed terms before doing business ──
     status(`Pip reads ${chosen.name}'s terms`);
@@ -260,10 +298,39 @@ async function run() {
       sys(`Pip fetched ${chosen.name}'s terms v${terms.terms.version} (signed by ${chosen.name}, signature ${tOk ? "verified" : "FAILED"}): min ticket ${terms.terms.minTicketXlm} XLM, max ${terms.terms.maxPaymentsPerCustomerPerHour} payments/customer/hour, ${terms.terms.blocklist.length} blocked counterparty. ${chosen.name} is examinable by auditor #${terms.terms.auditorId}, by protocol.`);
     } catch { sys(`could not fetch ${chosen.name}'s terms; proceeding without them`); }
 
+    const xl = (v: bigint) => (Number(v) / 1e7).toString();
+    let agreed: bigint | null = null;
+    let invoiceDoc: any = null;
+    let challenge: any = null;   // MPP: the 402 challenge Pip is paying
+    let t = () => {};
+    const mppUrl = `/api/mpp/brief?merchant=${MID}&cfg=${merchantCfg(MID as any)}`;
+    if (proto === "mpp") {
+      // ── Machine Payments Protocol: Pip asks for the resource and gets a 402 challenge. Take it or leave it. ──
+      status(`Pip requests the brief over MPP from ${chosen.name}`);
+      bubble("pip", `GET /api/mpp/brief. Send me the challenge.`);
+      t = typing("momo", `${chosen.name} prices from its books and issues an MPP challenge`);
+      const r1 = await fetch(mppUrl);
+      t();
+      if (r1.status !== 402) throw new Error(`expected 402 Payment Required from ${chosen.name}, got ${r1.status}`);
+      const { Challenge } = await import("mppx");
+      challenge = Challenge.fromHeaders(r1.headers);
+      const amt = BigInt(challenge.request.amount);
+      let exp = ""; try { if (challenge.expires) { const d = new Date(challenge.expires); if (!isNaN(d.getTime())) exp = d.toISOString().slice(11, 19) + " UTC"; } } catch {}
+      bubble("momo", `402 Payment Required. ${xl(amt)} XLM, method stellar, intent confidential-charge. Pay it confidentially and present the credential.`);
+      sys(`WWW-Authenticate: Payment id ${String(challenge.id).slice(0, 10)}…, method "stellar", intent "confidential-charge", amount ${amt} stroops, recipient ${String(challenge.request.recipient).slice(0, 6)}…, settlement confidential${exp ? ", expires " + exp : ""}. The challenge is HMAC-bound by ${chosen.name}. MPP has no haggling: Pip pays this amount or walks.`);
+      await wait(400);
+      if (amt > budget) {
+        bubble("pip", `${xl(amt)} is over my budget. Leaving it.`);
+        sys(`no deal: the MPP challenge (${xl(amt)} XLM) is above Pip's budget (${xl(budget)} XLM). Nothing was paid, nothing hit the chain. Raise the budget or switch Pip to "negotiate", where it can counter.`);
+        status("no deal"); return;
+      }
+      agreed = amt;
+      bubble("pip", `${xl(amt)} works. Paying the challenge confidentially.`);
+    } else {
     // ── Momo is a real service. Pip asks it for a quote. ──
     status(`Pip requests a quote from ${chosen.name}`);
     bubble("pip", "Need the settlement brief. What's your price today?");
-    let t = typing("momo", `${chosen.name} checks its books`);
+    t = typing("momo", `${chosen.name} checks its books`);
     const q1 = await fetch("/api/momo/quote", { method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ buyer: pip.address, merchant: MID, cfg: merchantCfg(MID as any) }) }).then((r) => r.json());
     t();
@@ -272,11 +339,8 @@ async function run() {
     sys(`${chosen.name}'s quote is signed by ${chosen.name} (${String(q1.signature).slice(0, 10)}…) and reflects its books: ${q1.booksHint?.paymentsEverReceived} payments ever, ${q1.booksHint?.lastHour} in the last hour`);
 
     // ── Pip decides: accept, counter, or walk ──
-    let agreed: bigint | null = null;
     const quoted = BigInt(Math.round(q1.priceXlm * 1e7));
-    const xl = (v: bigint) => (Number(v) / 1e7).toString();
     await wait(500);
-    let invoiceDoc: any = null;
     if (quoted <= budget && style === "take") {
       agreed = quoted; bubble("pip", `${xl(quoted)} works. Paying now.`);
       const qa = await fetch("/api/momo/quote", { method: "POST", headers: { "content-type": "application/json" },
@@ -310,8 +374,9 @@ async function run() {
         offer = next;
       }
     }
+    } // end negotiate
     if (agreed === null) {
-      sys("no deal: Momo's floor is above Pip's budget. Nothing was paid, nothing hit the chain. Raise the budget or change Pip's style.");
+      sys(`no deal: ${chosen.name}'s floor is above Pip's budget. Nothing was paid, nothing hit the chain. Raise the budget or change Pip's style.`);
       status("no deal");
       return;
     }
@@ -370,6 +435,41 @@ async function run() {
     t = typing("momo", `${chosen.name} checks the till, decrypting your transfer with its key`);
     status(`${chosen.name} verifying by decryption…`);
     let served: any = null;
+    let mppReceipt: string | null = null;
+    if (challenge) {
+      // MPP credential: signedHash, sourceSignature = Pip's Ed25519 signature over "{challenge.id}:{hash}"
+      const { Credential } = await import("mppx");
+      const sourceSignature = Buffer.from(pipKp.sign(Buffer.from(`${challenge.id}:${pay.hash}`))).toString("hex");
+      const credential = Credential.from({ challenge, payload: { type: "signedHash", hash: pay.hash, sourceSignature }, source: pip.address } as any);
+      const header = Credential.serialize(credential);
+      sys(`Pip presents the credential: Authorization: ${header.slice(0, 28)}… (type signedHash, bound to this challenge, this tx and this payer)`);
+      let r2: Response | null = null, body = "";
+      for (let attempt = 0; attempt < 8; attempt++) {
+        r2 = await fetch(mppUrl, { headers: { Authorization: header } });
+        body = await r2.text();
+        if (r2.status === 200) break;
+        let detail = ""; try { detail = JSON.parse(body)?.detail ?? ""; } catch {}
+        if (/policy at the till|does not verify|wrong token|not to this merchant/.test(detail)) { body = detail; break; }
+        await wait(2500);
+      }
+      if (r2?.status !== 200) {
+        let detail = body; try { detail = JSON.parse(body)?.detail ?? body; } catch {}
+        t();
+        if (/policy at the till/.test(detail)) {
+          sys(`${chosen.name} re-challenged (402): ${detail.replace(/[<>&]/g, "")}`);
+          const rf = await fetch("/api/momo/refund", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tx: pay.hash, merchant: MID }) }).then((r) => r.json()).catch(() => null);
+          sys(rf?.queued || rf?.refunded ? `Pip asked for its money back; ${chosen.name}'s worker refunds it by confidential_transfer (${rf.refundTx ? "done, tx " + String(rf.refundTx).slice(0, 12) + "…" : "queued, see /refunds.json"})` : `refund request: ${String(rf?.error ?? "no answer").replace(/[<>&]/g, "")}`);
+        }
+        throw new Error(`MPP verification did not succeed: ${detail}`);
+      }
+      served = JSON.parse(body);
+      mppReceipt = r2.headers.get("payment-receipt");
+      served.delivered = true;
+      served.binding = { ok: true, mpp: true };
+      t();
+      let rj: any = null; try { rj = JSON.parse(atob(mppReceipt ?? "")); } catch {}
+      sys(`200 OK with Payment-Receipt: ${mppReceipt ? mppReceipt.slice(0, 22) + "…" : "(none)"}${rj ? ` = { method ${rj.method}, reference ${String(rj.reference).slice(0, 10)}…, status ${rj.status} }` : ""}. ${chosen.name} verified the credential by decrypting the transfer with its own key and applied its terms at the till.`, "good");
+    } else
     for (let attempt = 0; attempt < 6 && !served?.delivered; attempt++) {
       // Pip attests {invoiceId, tx} with the same key that paid: binds this payer + this payment + this invoice
       const attest = invoiceDoc ? pipKp.sign((await import("@stellar/stellar-sdk")).hash(Buffer.from(JSON.stringify({ invoiceId: invoiceDoc.invoiceId, tx: pay.hash })))).toString("base64") : null;
@@ -381,16 +481,20 @@ async function run() {
       if (served?.paid && served?.decryptedXlm != null && !served?.delivered) break; // mismatch, no retry
       await wait(2500);
     }
-    t();
+    if (!challenge) t();
     if (!served?.paid) throw new Error(served?.error || `${chosen.name} could not find the payment`);
     if (!served.delivered) {
-      if (served.policy) sys(`policy at the till: ${served.policy.rule}: ${served.policy.reason} (terms v${served.policy.terms}). Payment decrypted as ${served.decryptedXlm} XLM and held, refundable.`);
+      if (served.policy) {
+        sys(`policy at the till: ${served.policy.rule}: ${served.policy.reason} (terms v${served.policy.terms}). Payment decrypted as ${served.decryptedXlm} XLM and held, refundable.`);
+        const rf = await fetch("/api/momo/refund", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tx: pay.hash, merchant: MID }) }).then((r) => r.json()).catch(() => null);
+        sys(rf?.queued || rf?.refunded ? `Pip asked for its money back; ${chosen.name}'s worker refunds it by confidential_transfer (${rf.refundTx ? "done, tx " + String(rf.refundTx).slice(0, 12) + "…" : "queued, see /refunds.json"})` : `refund request: ${String(rf?.error ?? "no answer").replace(/[<>&]/g, "")}`);
+      }
       throw new Error(served.error || `${chosen.name} refused delivery`);
     }
     if (served.policy?.allow) sys(`policy at the till passed (terms v${served.policy.terms}): min ticket, velocity, blocklist all clear`);
-    if (served.binding?.ok) sys(`invoice binding verified: Pip attested {invoice ${String(served.binding.invoiceId).slice(0, 12)}…, tx} with its own key, invoice issued to Pip for exactly this amount, redeemed once. Replaying this tx against another request will fail.`, "good");
-    const momoAfter = BigInt(Math.round((served.decryptedXlm ?? 0) * 1e7));
-    bubble("momo", `Confirmed. I decrypted exactly ${served.decryptedXlm} XLM from your transfer. Matches what we agreed. Shipping.`);
+    if (served.binding?.ok && !served.binding.mpp) sys(`invoice binding verified: Pip attested {invoice ${String(served.binding.invoiceId).slice(0, 12)}…, tx} with its own key, invoice issued to Pip for exactly this amount, redeemed once. Replaying this tx against another request will fail.`, "good");
+    const momoAfter = BigInt(Math.round((served.decryptedXlm ?? Number(priceXlm)) * 1e7));
+    bubble("momo", served.decryptedXlm != null ? `Confirmed. I decrypted exactly ${served.decryptedXlm} XLM from your transfer. Matches what we agreed. Shipping.` : `Confirmed by decryption. Shipping.`);
     const sigOk = sellerKp.verify(
       (await import("@stellar/stellar-sdk")).hash(Buffer.from(JSON.stringify(served.brief))),
       Buffer.from(served.signature, "base64"));
@@ -445,18 +549,20 @@ async function run() {
       const fc = xdr.TransactionResult.fromXDR(tr.result.resultXdr, "base64").feeCharged().toString();
       feeXlm = (Number(fc) / 1e7).toFixed(7).replace(/0+$/, "").replace(/\.$/, "");
     } catch {}
-    receipt(pay.hash, priceXlm, (Number(after.state().spendable.v) / 1e7).toString(), feeXlm);
+    receipt(pay.hash, priceXlm, (Number(after.state().spendable.v) / 1e7).toString(), feeXlm, { name: chosen.name, address: SELLER.address },
+      challenge ? `MPP stellar/confidential-charge, Payment-Receipt ${String(mppReceipt ?? "").slice(0, 14)}…` : `quote, negotiated, invoice ${String(invoiceDoc?.invoiceId ?? "").slice(0, 10)}… payer-attested`);
 
     // live panels: chain view vs decrypted view + history
     try {
-      const vegaOn = await client.confidentialBalance(momo.address);
+      $("seller-who").textContent = `${chosen.name}, seller`;
+      const vegaOn = await client.confidentialBalance(seller.address);
       $("pip-commit").textContent = Buffer.from(pointToBytes(onchain.spendableBalance)).toString("hex").slice(0, 48) + "…";
       $("momo-commit").textContent = Buffer.from(pointToBytes(vegaOn.receivingBalance)).toString("hex").slice(0, 48) + "…";
       $("pip-dec").textContent = (Number(after.state().spendable.v) / 1e7).toString() + " XLM spendable";
       $("momo-dec").textContent = (Number(momoAfter) / 1e7).toString() + " XLM decrypted from this payment";
       ($("balances") as HTMLElement).style.display = "";
     } catch {}
-    pushHistory({ tx: pay.hash, amt: priceXlm, at: new Date().toISOString().slice(0, 16).replace("T", " ") });
+    pushHistory({ tx: pay.hash, amt: priceXlm, at: new Date().toISOString().slice(0, 16).replace("T", " "), ts: Date.now(), mid: MID, proto });
     renderFeed();
   } catch (e: any) {
     const raw = String(e?.message || e?.name || e || "unknown");
@@ -477,7 +583,7 @@ async function run() {
 // ── receipt ─────────────────────────────────────────────────────────────────
 let lastTx = "";
 let lastTxt = "";
-function receipt(tx: string, priceXlm: string, changeXlm: string, feeXlm = "") {
+function receipt(tx: string, priceXlm: string, changeXlm: string, feeXlm = "", seller = { name: agentName("momo"), address: SESSION.momo.address }, via = "") {
   lastTx = tx;
   const dt = new Date().toISOString().replace("T", " ").slice(0, 19) + " UTC";
   $("slip").innerHTML = `
@@ -486,7 +592,7 @@ function receipt(tx: string, priceXlm: string, changeXlm: string, feeXlm = "") {
     <hr class="cut">
     <div class="lr"><span class="l">DATE</span><span class="r">${dt}</span></div>
     <div class="lr"><span class="l">FROM</span><span class="r">${agentName("pip")} <a href="https://stellar.expert/explorer/testnet/account/${SESSION.pip.address}" target="_blank" rel="noreferrer">${SESSION.pip.address.slice(0, 6)}…${SESSION.pip.address.slice(-4)}</a></span></div>
-    <div class="lr"><span class="l">TO</span><span class="r">${agentName("momo")} <a href="https://stellar.expert/explorer/testnet/account/${SESSION.momo.address}" target="_blank" rel="noreferrer">${SESSION.momo.address.slice(0, 6)}…${SESSION.momo.address.slice(-4)}</a></span></div>
+    <div class="lr"><span class="l">TO</span><span class="r">${seller.name} <a href="https://stellar.expert/explorer/testnet/account/${seller.address}" target="_blank" rel="noreferrer">${seller.address.slice(0, 6)}…${seller.address.slice(-4)}</a></span></div>
     <hr class="cut">
     <div class="bigrow"><span>AMOUNT ON-CHAIN</span><span class="amt">ENCRYPTED</span></div>
     <div class="decr">SELLER DECRYPTED: +${priceXlm} XLM (exact match)<br>BUYER CHANGE: ${changeXlm} XLM, chain-verified</div>
@@ -495,7 +601,8 @@ function receipt(tx: string, priceXlm: string, changeXlm: string, feeXlm = "") {
     <hr class="cut">
     <div class="lr"><span class="l">TX</span><span class="r"><a href="https://stellar.expert/explorer/testnet/tx/${tx}" target="_blank" rel="noreferrer">${tx}</a></span></div>
     <div class="lr"><span class="l">CONTRACT</span><span class="r"><a href="https://stellar.expert/explorer/testnet/contract/${SESSION.contracts.token}" target="_blank" rel="noreferrer">${SESSION.contracts.token.slice(0, 10)}…</a> (OpenZeppelin)</span></div>
-    <div class="lr"><span class="l">PROOF</span><span class="r">UltraHonk, generated in this browser</span></div>`;
+    <div class="lr"><span class="l">PROOF</span><span class="r">UltraHonk, generated in this browser</span></div>${via ? `
+    <div class="lr"><span class="l">PAID VIA</span><span class="r">${via}</span></div>` : ""}`;
   const slip = $("slip");
   slip.classList.add("printed");
   const slot = document.getElementById("slot");
@@ -513,7 +620,7 @@ function receipt(tx: string, priceXlm: string, changeXlm: string, feeXlm = "") {
   lastTxt = `PAYMENT RECEIPT - stellar testnet, confidential transfer
 ${dt}
 FROM ${agentName("pip")} ${SESSION.pip.address}
-TO   ${agentName("momo")} ${SESSION.momo.address}
+TO   ${seller.name} ${seller.address}${via ? "\nPAID VIA " + via : ""}
 AMOUNT ON-CHAIN: ENCRYPTED
 seller decrypted: +${priceXlm} XLM (exact match)
 buyer change: ${changeXlm} XLM, chain-verified
@@ -524,7 +631,7 @@ CONTRACT ${SESSION.contracts.token}
   $("slip").scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
-type Run = { tx: string; amt: string; at: string };
+type Run = { tx: string; amt: string; at: string; ts?: number; mid?: string; proto?: string };
 function loadHistory(): Run[] { try { return JSON.parse(localStorage.getItem("runs") ?? "[]"); } catch { return []; } }
 let historyExpanded = false;
 function renderHistory() {
@@ -533,7 +640,7 @@ function renderHistory() {
   ($("histwrap") as HTMLElement).style.display = "";
   const shown = historyExpanded ? runs : runs.slice(0, 3);
   const row = (r: Run) =>
-    `<li>${r.at} UTC, ${r.amt} XLM (hidden on-chain), <a href="https://stellar.expert/explorer/testnet/tx/${r.tx}" target="_blank" rel="noreferrer">${r.tx.slice(0, 12)}…</a></li>`;
+    `<li>${r.at} UTC, ${r.amt} XLM (hidden on-chain) to ${DEFAULT_NAMES[r.mid ?? "momo"] ?? r.mid}${r.proto === "mpp" ? " over MPP" : ""}, <a href="https://stellar.expert/explorer/testnet/tx/${r.tx}" target="_blank" rel="noreferrer">${r.tx.slice(0, 12)}…</a></li>`;
   const toggle = runs.length > 3
     ? `<li><button class="histmore" id="histmore">${historyExpanded ? "show fewer" : `show all ${runs.length}`}</button></li>`
     : "";
@@ -542,7 +649,7 @@ function renderHistory() {
  });
 }
 function pushHistory(r: Run) {
-  const runs = [r, ...loadHistory()].slice(0, 12);
+  const runs = [r, ...loadHistory()].slice(0, 40);
   localStorage.setItem("runs", JSON.stringify(runs));
   renderHistory();
 }
@@ -566,7 +673,44 @@ ln.textContent = SESSION.pip.address;
 lv.href = `https://stellar.expert/explorer/testnet/account/${SESSION.momo.address}`;
 lv.textContent = SESSION.momo.address;
 
-$("run").addEventListener("click", run);
+$("run").addEventListener("click", () => run());
+
+// ── the clock: Pip acts on its own schedule while this tab is open. Directives are read at the start of every tick. ──
+let clockOn = false, tickN = 0, skipNext = false, wakeNow = false;
+let lastSnap: Record<string, string> | null = null;
+function snapshotCfg() { const o: Record<string, string> = {}; for (const k of CFG_KEYS) o[k] = cfgVal(k); o["pip-budget-live"] = ($("amt") as HTMLInputElement).value; o["denom"] = ($("denom") as HTMLSelectElement).value; o["disclose"] = String(($("disclose") as HTMLInputElement).checked); return o; }
+function directivesApplied() {
+  const now = snapshotCfg();
+  if (lastSnap) {
+    const changes = Object.keys(now).filter((k) => now[k] !== lastSnap![k]).map((k) => `${CFG_LABELS[k] ?? k} ${lastSnap![k] || "blank"} → ${now[k] || "blank"}`);
+    if (changes.length) sys(`directives applied this tick: ${changes.join("; ")}`, "directive");
+  }
+  lastSnap = now;
+}
+function setClockUi() {
+  const b = $("clock") as HTMLButtonElement;
+  b.textContent = clockOn ? "Stop the clock" : "Start the clock";
+  b.classList.toggle("on", clockOn);
+  ($("coach") as HTMLElement).style.display = clockOn ? "" : "none";
+}
+async function clockLoop() {
+  setClockUi();
+  lastSnap = snapshotCfg();
+  while (clockOn) {
+    tickN++;
+    if (skipNext) { skipNext = false; sys(`tick ${tickN}, ${new Date().toISOString().slice(11, 19)} UTC: directive "skip", Pip sits this one out`, "tick"); directivesApplied(); }
+    else await run(tickN, directivesApplied);
+    if (!clockOn) break;
+    for (let sLeft = pipEvery(); sLeft > 0 && clockOn && !wakeNow; sLeft--) { status(`Pip's clock: next tick in ${sLeft}s (change any knob above, it applies then)`); await wait(1000); }
+    wakeNow = false;
+  }
+  status("");
+  setClockUi();
+}
+$("clock").addEventListener("click", () => { clockOn = !clockOn; if (clockOn) clockLoop(); else { setClockUi(); status("clock stopped after this tick"); } });
+$("d-now").addEventListener("click", () => { wakeNow = true; });
+$("d-skip").addEventListener("click", () => { skipNext = true; sys("directive queued: Pip will sit out the next tick", "directive"); });
+window.addEventListener("beforeunload", (e) => { if (clockOn && running) { e.preventDefault(); } });
 $("b-print").addEventListener("click", () => window.print());
 $("b-txt").addEventListener("click", () => {
   const a = document.createElement("a");

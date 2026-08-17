@@ -36,6 +36,18 @@
   .runbar{display:flex;align-items:center;gap:10px;margin:22px 0 8px;flex-wrap:wrap}
   button.run{font-family:var(--sans);font-size:14.5px;font-weight:600;padding:11px 22px;border-radius:999px;border:none;background:var(--ink);color:var(--bg);cursor:pointer;white-space:nowrap}
   button.run:disabled{opacity:.45;cursor:default}
+  button.clock{font-family:var(--sans);font-size:14.5px;font-weight:600;padding:11px 18px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;white-space:nowrap}
+  button.clock.on{border-color:var(--ink)}
+  button.clock.on::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ok);margin-right:8px;vertical-align:1px;animation:blink 1.6s infinite}
+  .coach{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--sub);margin:4px 0 0}
+  .coach button{font-family:var(--sans);font-size:12px;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+  .sys .s.tick{background:var(--ink);color:var(--bg);font-weight:600;letter-spacing:.03em}
+  .sys .s.directive{border:1px dashed var(--sub);background:transparent}
+  .cfgterms{font-size:11.5px;color:var(--sub);margin-top:6px;line-height:1.5}
+  .board{list-style:none;margin:0;padding:0}
+  .board li{font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--line);line-height:1.55}
+  .board li:last-child{border-bottom:none}
+  .feedh{font-size:12px;font-weight:600;margin:10px 0 4px}
   #amt{font-family:var(--sans);font-size:14px;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);width:230px;max-width:45vw;transition:border-color .15s,box-shadow .15s}
   #amt:focus{outline:none;border-color:var(--sub);box-shadow:0 0 0 3px color-mix(in srgb, var(--ink) 10%, transparent)}
   .selwrap{position:relative}
@@ -144,7 +156,7 @@
 <div class="wrap">
   <header>
     <h1>Confidential Agent Commerce</h1>
-    <p class="sub">Two merchant agents, Momo and Kiki, run as live services with their own prices and policies. Pip is a buyer agent with a budget you set: it shops the market, negotiates for real (neither side sees the other's number), and the price settles encrypted on Stellar testnet. The merchant confirms payment by decrypting it, a registered auditor can always read it, everyone else sees nothing.</p>
+    <p class="sub">Two merchant agents, Momo and Kiki, run as live services with their own prices and signed terms. Pip is a buyer agent with a budget you set: it shops the market, negotiates for real (neither side sees the other's number) or pays a Machine Payments Protocol challenge, and the price settles encrypted on Stellar testnet. The merchant confirms payment by decrypting it, a registered auditor can always read it, everyone else sees nothing. Start the clock and Pip trades on its own schedule while you coach it.</p>
     <p class="sub" style="font-size:12px;margin-top:8px">Demo keys are published on purpose (testnet, worthless): anyone can decrypt this demo's own amounts. The protocol hides amounts from anyone without keys.</p>
     <div class="runbar">
       <div class="selwrap"><select id="denom" aria-label="currency"><option value="xlm">XLM</option><option value="usd">USD, oracle to XLM</option></select></div>
@@ -153,8 +165,10 @@
       <select id="style" hidden><option value="haggle"></option><option value="take"></option><option value="stingy"></option></select>
       <input id="amt" inputmode="decimal" placeholder="Pip's budget (blank = random)" autocomplete="off" aria-label="payment amount">
       <button class="run" id="run">Run payment</button>
+      <button class="clock" id="clock" type="button">Start the clock</button>
       <span class="status" id="status" aria-live="polite"></span>
     </div>
+    <div class="coach" id="coach" style="display:none">coach Pip: <button id="d-now" type="button">buy now</button> <button id="d-skip" type="button">skip next tick</button> <span>any knob in Configure the agents applies at the next tick; Pip logs what changed</span></div>
   </header>
 
   <div class="idstrip" id="idstrip"></div>
@@ -169,6 +183,9 @@
           <select id="c-pip-style"><option value="haggle">haggles (opens at 60%)</option><option value="stingy">stingy (opens at 40%)</option><option value="take">takes the quote</option></select></label>
         <label>shopping <select id="c-pip-shop"><option value="cheapest">cheapest quote</option><option value="trusted">most track record</option><option value="momo">only Momo</option><option value="kiki">only Kiki</option></select></label>
         <label>rounds <input id="c-pip-rounds" inputmode="numeric" value="3"></label>
+        <label>protocol <select id="c-pip-proto"><option value="negotiate">negotiate (quote, invoice)</option><option value="mpp">MPP (pay the 402 challenge)</option></select></label>
+        <label>tick every <select id="c-pip-every"><option value="45">45 s</option><option value="60" selected>60 s</option><option value="90">90 s</option><option value="120">2 min</option><option value="300">5 min</option></select></label>
+        <label>respects hourly limits <input id="c-pip-limits" type="checkbox" checked style="width:auto;accent-color:var(--ink)"></label>
       </div>
       <div class="cfgcol">
         <div class="cfgh">Momo, merchant</div>
@@ -176,8 +193,7 @@
         <label>private floor <input id="c-momo-floor" inputmode="decimal" value="2"></label>
         <label>surge / payment <input id="c-momo-surge" inputmode="decimal" value="0.3"></label>
         <label>surge cap <input id="c-momo-cap" inputmode="decimal" value="3"></label>
-        <label>min ticket <input id="c-momo-min" inputmode="decimal" value="0.5"></label>
-        <label>max / hour <input id="c-momo-vel" inputmode="numeric" value="6"></label>
+        <div class="cfgterms">terms, signed and fixed: min ticket 0.5 XLM, max 6 payments per customer per hour</div>
       </div>
       <div class="cfgcol">
         <div class="cfgh">Kiki, merchant</div>
@@ -185,14 +201,13 @@
         <label>private floor <input id="c-kiki-floor" inputmode="decimal" value="3.5"></label>
         <label>surge / payment <input id="c-kiki-surge" inputmode="decimal" value="0"></label>
         <label>surge cap <input id="c-kiki-cap" inputmode="decimal" value="0"></label>
-        <label>min ticket <input id="c-kiki-min" inputmode="decimal" value="1"></label>
-        <label>max / hour <input id="c-kiki-vel" inputmode="numeric" value="3"></label>
+        <div class="cfgterms">terms, signed and fixed: min ticket 1 XLM, max 3 payments per customer per hour</div>
       </div>
     </div>
-    <div class="cfgnote">Merchant identities (keys, on-chain registration) are fixed. Their behavior is yours to set: the negotiation, the till, and the market board all run with what you configure here. Saved in this browser. <button id="c-reset" type="button">reset defaults</button></div>
+    <div class="cfgnote">Merchant identities (keys, on-chain registration) and terms are fixed. Pricing is yours to set: the negotiation, the till, and the market board all run with what you configure here, and while the clock runs every change is a directive Pip reads at its next tick. Terms are not knobs on purpose: a verdict at the till has to be re-derivable from the chain alone, or the refund worker could refund delivered goods or strand funds. Saved in this browser. <button id="c-reset" type="button">reset defaults</button></div>
   </details>
 
-  <div class="chat" id="chat" role="log" aria-live="polite"><div class="empty">Press run. This is not a simulation: a new payment is negotiated, proven, and settled on testnet while you watch. Takes about 20 seconds. Price it in XLM or in dollars (converted live from the reflector oracle). </div></div>
+  <div class="chat" id="chat" role="log" aria-live="polite"><div class="empty">Press run for one payment, or start the clock and Pip trades on its own schedule. This is not a simulation: each tick is a new payment negotiated (or challenged over MPP), proven, and settled on testnet while you watch. About 20 seconds each. Price it in XLM or in dollars (converted live from the reflector oracle).</div></div>
 
   <div class="slipwrap"><div class="printcol"><div class="slot" id="slot" style="display:none"></div><div class="feed" id="feedmask"><div class="slip" id="slip"></div></div></div></div>
   <div class="exports" id="exports">
@@ -205,14 +220,23 @@
     <h2>The chain's view vs the agents' view, live</h2>
     <div class="bal">
       <div class="cell"><div class="who">Pip, buyer</div><div>chain holds:</div><div class="commit" id="pip-commit"></div><div>Pip decrypts:</div><div class="dec" id="pip-dec"></div></div>
-      <div class="cell"><div class="who">Momo, seller</div><div>chain holds:</div><div class="commit" id="momo-commit"></div><div>Momo decrypts:</div><div class="dec" id="momo-dec"></div></div>
+      <div class="cell"><div class="who" id="seller-who">Momo, seller</div><div>chain holds:</div><div class="commit" id="momo-commit"></div><div>seller decrypts:</div><div class="dec" id="momo-dec"></div></div>
     </div>
   </div>
 
+  <div class="panel" id="marketboard">
+    <h2>The market board, live</h2>
+    <div style="font-size:12px;color:var(--sub);margin-bottom:6px">What Pip reads at every tick: each merchant's quote from its own decrypted books, its signed terms, and Pip's notebook against them. Prices move as payments land; a shop that has served Pip its hourly maximum drops off Pip's list until the hour rolls.</div>
+    <ul class="board" id="board"><li style="color:var(--sub)">loading…</li></ul>
+  </div>
+
   <div class="panel" id="momofeed">
-    <h2>Momo's customers, from the chain</h2>
-    <div style="font-size:12px;color:var(--sub);margin-bottom:8px">Every agent that has ever paid Momo. Momo reads this by replaying public events and decrypting each transfer with its own key. Amounts are visible here only because this is Momo's own view.</div>
-    <ul class="hist" id="feedlist"><li style="color:var(--sub)">loading…</li></ul>
+    <h2>The merchants' books, from the chain</h2>
+    <div style="font-size:12px;color:var(--sub);margin-bottom:4px">Every agent that has ever paid each merchant. A merchant reads this by replaying public events and decrypting each transfer with its own key. Amounts are visible here only because this is the merchant's own view.</div>
+    <div class="feedh">Momo</div>
+    <ul class="hist" id="feedlist-momo"><li style="color:var(--sub)">loading…</li></ul>
+    <div class="feedh">Kiki</div>
+    <ul class="hist" id="feedlist-kiki"><li style="color:var(--sub)">loading…</li></ul>
   </div>
 
   <div class="panel" id="histwrap" style="display:none">
@@ -236,7 +260,9 @@
     <pre class="byo">git clone https://github.com/Stellar-Light/confidential-agent-commerce
 cd confidential-agent-commerce/agents
 npm install
-node join.mjs --name YourAgent --amount 2</pre>
+node join.mjs --name YourAgent --amount 2        # negotiate, pay, get signed goods
+node mpp-buy.mjs --merchant kiki                 # buy over MPP: 402, pay, credential, receipt
+for i in 1 2 3; do node join.mjs; sleep 120; done   # your agent on its own clock</pre>
   </div>
 
   <footer>

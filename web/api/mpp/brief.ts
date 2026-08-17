@@ -9,8 +9,8 @@
  * Standard MPP handshake; the settlement is confidential. To our knowledge
  * the first confidential-settlement MPP method anywhere.
  */
-import { mppFor } from "../../lib/mpp/server.js";
-import { merchantById, momoBooks, policyQuote, signGoods } from "../../lib/momo.js";
+import { mppFor, decryptedFor } from "../../lib/mpp/server.js";
+import { merchantById, momoBooks, quoteFor, signGoods } from "../../lib/momo.js";
 
 function toWebRequest(req: any): Request {
   const proto = req.headers["x-forwarded-proto"] ?? "https";
@@ -28,16 +28,14 @@ export default async function handler(req: any, res: any) {
   if (req.method === "OPTIONS") { res.status(204).end(); return; }
   try {
     const M = merchantById(req.query?.merchant, req.query?.cfg);
-    const { inbound } = await momoBooks(M);
-    const latest = inbound.length ? Math.max(...inbound.map((e: any) => e.ledger)) : 0;
-    const recent = inbound.filter((e: any) => latest - e.ledger < 720).length;
-    const p = policyQuote(inbound.length, recent, { listXlm: M.listXlm, floorXlm: M.floorXlm, surgePerPaymentXlm: M.surgePerPaymentXlm, surgeCapXlm: M.surgeCapXlm, name: M.name, product: M.product });
+    const p = quoteFor(M, await momoBooks(M));
     const mppx: any = mppFor(M);
     const handlerFn = mppx["stellar/confidential-charge"];
     // MPP pins a presented credential to the request it is verified against ({amount, currency, recipient}).
     // On the paid retry, honor the price the buyer was challenged with (HMAC-authenticated + expiry-bounded),
     // not a re-quote from live books; on the first call, quote live.
     let amount = p.quote.toString();
+    let paidTx: string | null = null;
     const authz = req.headers?.authorization ?? req.headers?.Authorization;
     if (authz) {
       try {
@@ -45,6 +43,7 @@ export default async function handler(req: any, res: any) {
         const cred = Credential.fromRequest(toWebRequest(req));
         const challenged = (cred.challenge as any)?.request?.amount;
         if (typeof challenged === "string" && /^\d+$/.test(challenged)) amount = challenged;
+        paidTx = String((cred.payload as any)?.hash ?? "").toLowerCase() || null;
       } catch {}
     }
     const result = await handlerFn({ amount, description: `${M.name}: ${M.product} (confidential settlement)` })(toWebRequest(req));
@@ -57,7 +56,8 @@ export default async function handler(req: any, res: any) {
     const brief = { title: "Stellar Settlement-Currency Brief", asOf: new Date().toISOString(), seller: M.name,
       paidVia: { protocol: "MPP stellar/confidential-charge", settlement: "confidential; the merchant decrypted the amount, the chain never showed it" },
       facts: ["This response was released by an MPP payment challenge whose settlement is an OpenZeppelin confidential transfer.", "Only the merchant and the registered auditor can read what you paid."] };
-    const out: Response = result.withReceipt(new Response(JSON.stringify({ paid: true, brief, ...signGoods(brief, M) }), { headers: { "content-type": "application/json" } }));
+    const decryptedXlm = paidTx ? decryptedFor.get(paidTx) ?? null : null;
+    const out: Response = result.withReceipt(new Response(JSON.stringify({ paid: true, decryptedXlm, brief, ...signGoods(brief, M) }), { headers: { "content-type": "application/json" } }));
     out.headers.forEach((v: string, k: string) => res.setHeader(k, v));
     res.status(200).send(await out.text());
   } catch (e: any) { res.status(500).json({ error: String(e?.message ?? e) }); }

@@ -7,14 +7,9 @@
  *
  * This is what makes "held, not seized" true. Testnet.
  */
-import { Buffer } from "node:buffer";
-import { Address, xdr } from "@stellar/stellar-sdk";
-import { momoBooks, client, SESSION, MOMO } from "../../lib/momo.js";
+import { momoBooks, merchantById } from "../../lib/momo.js";
 import { decide } from "../../lib/policy.js";
-import { keypairSigner } from "stellar-confidential-token-sdk/chain";
-import { Keypair } from "@stellar/stellar-sdk";
 
-const refunded = new Set<string>(); // per-instance idempotency; the chain is the durable record
 
 export default async function handler(req: any, res: any) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -24,13 +19,13 @@ export default async function handler(req: any, res: any) {
     const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body ?? {});
     const tx = String(body.tx ?? "").toLowerCase();
     if (!/^[0-9a-f]{64}$/.test(tx)) { res.status(400).json({ error: "tx required" }); return; }
-    if (refunded.has(tx)) { res.status(409).json({ error: "already refunded in this session" }); return; }
-    const { inbound, engine } = await momoBooks();
+    const M = merchantById(body.merchant ?? req.query?.merchant);
+    const { inbound, engine } = await momoBooks(M);
     const ev: any = inbound.find((e: any) => String(e.txHash).toLowerCase() === tx);
-    if (!ev) { res.status(404).json({ error: "no payment to Momo in that tx" }); return; }
+    if (!ev) { res.status(404).json({ error: `no payment to ${M.name} in that tx` }); return; }
     const paidXlm = typeof ev.amount === "number" ? ev.amount : Number(engine.decryptIncoming(ev.rE, ev.vTilde, ev.sigma).vTx) / 1e7;
     const customerLedgers = (inbound as any[]).filter((e) => e.from === ev.from).map((e) => e.ledger as number);
-    const verdict = decide({ from: ev.from, paidXlm, ledger: ev.ledger, customerLedgers });
+    const verdict = decide({ from: ev.from, paidXlm, ledger: ev.ledger, customerLedgers }, M);
     if (verdict.allow) { res.status(409).json({ error: "that payment passed policy and was delivered; nothing to refund" }); return; }
 
     // Refunds are PROVEN by Momo's worker (full Node, no serverless time cap), not in this function.
@@ -43,13 +38,10 @@ export default async function handler(req: any, res: any) {
     if (process.env.GH_DISPATCH_TOKEN) {
       const d = await fetch("https://api.github.com/repos/Stellar-Light/confidential-agent-commerce/dispatches", {
         method: "POST", headers: { Authorization: `Bearer ${process.env.GH_DISPATCH_TOKEN}`, Accept: "application/vnd.github+json" },
-        body: JSON.stringify({ event_type: "refund", client_payload: { tx } }) });
+        body: JSON.stringify({ event_type: "refund", client_payload: { tx, merchant: M.id } }) });
       dispatched = d.status === 204;
     }
     res.status(202).json({ refunded: false, queued: true, dispatched, to: ev.from, amountXlm: paidXlm,
-      reason: `${verdict.rule}: ${verdict.reason}`, note: "Momo's worker proves and submits the refund (confidential_transfer back to you); check /refunds.json for the refund tx" });
-    return;
-    refunded.add(tx);
-    res.status(200).json({ refunded: true, to: ev.from, amountXlm: paidXlm, refundTx: out.hash, reason: `${verdict.rule}: ${verdict.reason}` });
+      reason: `${verdict.rule}: ${verdict.reason}`, note: `${M.name}'s worker proves and submits the refund (confidential_transfer back to you); check /refunds.json for the refund tx` });
   } catch (e: any) { res.status(500).json({ error: String(e?.message ?? e) }); }
 }

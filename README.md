@@ -40,7 +40,7 @@ auditor is not optional): **https://confidential-agent-commerce.vercel.app/how/*
 Momo and Kiki are two merchant agents running as live services with their own
 keys, price profiles, and policies (same till software, different shops):
 
-| merchant | list | floor (private) | pricing | min ticket | velocity |
+| merchant | list | floor (private) | pricing | terms (signed, fixed): min ticket | velocity |
 |---|---|---|---|---|---|
 | Momo | 5 XLM | 2 XLM | surge: +0.3 XLM per payment in the last hour, capped | 0.5 XLM | 6 / customer / hour |
 | Kiki | 4 XLM | 3.5 XLM | flat, no surge | 1 XLM | 3 / customer / hour |
@@ -48,13 +48,57 @@ keys, price profiles, and policies (same till software, different shops):
 `GET /api/market` returns every merchant's live quote and track record (from
 the chain, decrypted by each merchant's own key). Pip reads it and chooses by
 a shopping policy: cheapest quote, most track record, or a named merchant. Then
-it fetches that merchant's signed terms, negotiates within its private budget,
-pays confidentially, attests the invoice, and the merchant decrypt-verifies
-before delivering. Every merchant endpoint takes `?merchant=momo|kiki`.
+it fetches that merchant's signed terms, negotiates within its private budget
+(or pays an MPP challenge, below), pays confidentially, attests the invoice,
+and the merchant decrypt-verifies before delivering. Every merchant endpoint
+takes `?merchant=momo|kiki`.
 
-What you see is a market: a busy Momo surges above a quiet Kiki; Kiki refuses
-lowballs its firm floor won't take; a cheap-and-unproven shop competes with an
-expensive-and-established one, and the buyer decides.
+What you see is a market: a busy Momo surges above a quiet Kiki and cools
+again as the hour rolls (demand is measured from the chain head); Kiki
+refuses lowballs its firm floor won't take; a cheap-and-unproven shop competes
+with an expensive-and-established one, and the buyer decides.
+
+**Pricing is yours to set, terms are not.** The configure panel drives list
+price, private floor, surge and cap for each merchant, live. Min ticket and
+velocity are deliberately fixed and signed: a verdict at the till has to be a
+pure function of chain facts plus the merchant's published terms, otherwise
+the refund worker cannot re-derive it later and would either refund delivered
+goods (under stricter terms) or strand funds (under looser ones). We found
+this the hard way while wiring the clock; the knobs came out.
+
+## The clock: agents on their own schedule, coached live
+
+**Start the clock** and Pip trades on a schedule (every 45 s to 5 min) for as
+long as the tab is open: each tick it reads the market board, keeps a notebook
+of how many times each merchant has served it this hour against that
+merchant's signed velocity term, drops shops that have served it their maximum,
+picks by its shopping policy, negotiates or pays the MPP challenge, and prints
+a receipt. When every shop is at its limit, Pip sits the tick out rather than
+pay to be declined at the till.
+
+While the clock runs, every knob is a **directive**: change Momo's list price,
+Pip's budget, its haggling style, its protocol, and the next tick trades on it;
+Pip logs what changed (`directives applied this tick: Momo list 5 → 9`). Two
+one-shot directives sit next to the clock: *buy now* and *skip next tick*. Our
+agents are code, not language models, so a directive is a knob they read, not
+a prompt they may ignore; that is the honest version of coaching for
+rule-based agents. Untick *respects hourly limits* and Pip will pay past a
+merchant's velocity term on purpose, so you can watch the till decline the
+payment by policy and the refund path run.
+
+The clock lives in your tab: close it and Pip stops; the merchants keep
+running as services. Your own agent can keep its own clock:
+
+```sh
+cd agents && for i in 1 2 3; do node join.mjs --amount 3; sleep 120; done
+```
+
+A run we recorded while building this: tick 1 Pip buys the cheapest quote
+(Kiki, 3.6 after haggling); we raise Momo's list price to 9 mid-run; tick 2
+logs the directive and Momo now quotes 10.2, Pip still buys Kiki; tick 3 Pip's
+notebook reads Kiki 3/3, it holds itself to Kiki's terms, switches to Momo and
+haggles 10.2 down to its 6 XLM budget. Every one of those was a real
+confidential transfer on testnet.
 
 ## Confidential MPP: a real Machine Payments Protocol charge, settled privately
 
@@ -82,7 +126,13 @@ The verifier (`web/lib/mpp/server.ts`) checks the invocation is a
 the payer signature against the on-chain sender, then decrypts the transfer
 with the merchant's key and compares it with the challenged amount.
 
-Buy over MPP from your own agent:
+Buy over MPP from your own agent, or set Pip's protocol to **MPP** in the
+configure panel and watch the same handshake happen in your browser: 402,
+challenge parsed with `mppx`, UltraHonk proof in the tab, credential, 200 with
+a `Payment-Receipt`, and a receipt line reading `PAID VIA MPP
+stellar/confidential-charge`. The verifier also applies the merchant's terms at
+the till (min ticket, velocity, blocklist) to the decrypted amount, and a
+decline comes back as an RFC 9457 problem with the reason.
 
 ```sh
 cd agents && node mpp-buy.mjs --merchant momo   # or --merchant kiki

@@ -85,6 +85,10 @@ const keys    = deriveKeys(sk, ...);               // vk, PVK, deterministic, no
      │  deal complete                   │</div>
   <p>Every message in that diagram happened and is logged; every ⛓ step has a transaction hash in the <a href="https://github.com/Stellar-Light/confidential-agent-commerce/tree/main/agents">receipt</a>, with envelope XDRs archived so the evidence outlives testnet resets.</p>
 
+  <h2>7b · The same commerce over MPP, and agents on a clock</h2>
+  <p>The negotiated protocol above is ours. The site also sells the same brief over the <a href="https://mpp.dev">Machine Payments Protocol</a> with a new payment method, <span class="k">stellar</span> / <span class="k">confidential-charge</span>: a standard 402 challenge in <span class="k">WWW-Authenticate: Payment</span>, a standard <span class="k">signedHash</span> credential (the payer's Ed25519 signature over <span class="k">challenge.id:txHash</span>), and a <span class="k">Payment-Receipt</span> on success. The only difference from the official <span class="k">stellar/charge</span> method is settlement: a <span class="k">confidential_transfer</span> instead of a SEP-41 transfer, verified by the merchant <em>decrypting</em> the amount rather than reading a transfer event. Set Pip's protocol to MPP and the browser runs that handshake; <span class="k">agents/mpp-buy.mjs</span> is the headless version.</p>
+  <p>Start the clock and Pip acts on a schedule: it reads the market board, holds itself to each merchant's signed velocity term from its own notebook, picks a shop, pays, prints a receipt, and reads every knob you change as a directive before the next tick. Terms (min ticket, velocity) are fixed and signed on purpose: a verdict at the till must be re-derivable from the chain alone, or refunds cannot be made sound; pricing is what you get to coach.</p>
+
   <h2>8 · Who sees what, precisely</h2>
   <div class="tw"><table>
     <tr><th>observer</th><th>sees</th><th>because</th></tr>

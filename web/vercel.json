@@ -17,6 +17,15 @@
     },
     "api/brief.ts": {
       "maxDuration": 30
+    },
+    "api/mpp/brief.ts": {
+      "maxDuration": 30
+    },
+    "api/market.ts": {
+      "maxDuration": 30
+    },
+    "api/momo/terms.ts": {
+      "maxDuration": 30
     }
   }
 }

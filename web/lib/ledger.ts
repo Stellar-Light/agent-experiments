@@ -10,8 +10,9 @@ const names = new Map<string, string>();
 export async function appendLedger(row: { at: string; tx: string; ledger: number; from: string; name: string; xlm: number }) {
   if (row.name && row.name !== "agent") names.set(row.from, row.name);
 }
-export async function customerLedger() {
-  const { inbound, engine, receivedTotal } = await momoBooks();
+import type { MerchantProfile } from "./merchants.js";
+export async function customerLedger(M?: MerchantProfile) {
+  const { inbound, engine, receivedTotal } = await momoBooks(M);
   const byAgent = new Map<string, { address: string; name?: string; payments: number; lastLedger: number; totalXlm: number }>();
   for (const ev of inbound as any[]) {
     let amt = 0;

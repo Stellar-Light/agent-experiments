@@ -38,7 +38,7 @@ function ensureName(side: "pip" | "momo") {
   const face = `<img src="${blobAvatar(who)}" width="20" height="20" style="vertical-align:-5px;border-radius:50%">`;
   n.innerHTML = side === "pip"
     ? `${agentName("pip")} (buyer) <span style="margin-left:5px">${face}</span>`
-    : `<span style="margin-right:5px">${face}</span> ${agentName("momo")} (seller)`;
+    : `<span style="margin-right:5px">${face}</span> ${(window as any).__sellerName ?? agentName("momo")} (seller)`;
   $("chat").appendChild(n);
 }
 function bubble(side: "pip" | "momo", text: string) {
@@ -73,7 +73,7 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const status = (t: string) => (($("status") as HTMLElement).textContent = t);
 
 // agent display names (fixed)
-const DEFAULT_NAMES: Record<string, string> = { pip: "Pip", momo: "Momo" };
+const DEFAULT_NAMES: Record<string, string> = { pip: "Pip", momo: "Momo", kiki: "Kiki" };
 function agentName(k: string): string {
   try { return localStorage.getItem("name:" + k) || DEFAULT_NAMES[k]; } catch { return DEFAULT_NAMES[k]; }
 }
@@ -189,32 +189,52 @@ async function run() {
       const usd = Number(typed) / 1e7;
       budget = BigInt(Math.round((usd / rate) * 1e7));
       if (budget > 200n * STROOP) throw new Error(`$${usd} is ${(Number(budget) / 1e7).toFixed(2)} XLM at the current rate; keep it under 200 XLM`);
-      sys(`Pip's budget: $${usd} = ${(Number(budget) / 1e7).toFixed(4)} XLM at ${rate.toFixed(4)} USD/XLM (live reflector oracle). Momo will not learn this number.`);
+      sys(`Pip's budget: $${usd} = ${(Number(budget) / 1e7).toFixed(4)} XLM at ${rate.toFixed(4)} USD/XLM (live reflector oracle). The merchant will not learn this number.`);
     } else {
       budget = typed ?? BigInt(3 + Math.floor(Math.random() * 5)) * STROOP;
-      sys(`Pip's budget: ${(Number(budget) / 1e7)} XLM (private to Pip). Momo quotes from its own policy; neither knows the other's number.`);
+      sys(`Pip's budget: ${(Number(budget) / 1e7)} XLM (private to Pip). Merchants quote from their own policies; neither side knows the other's number.`);
     }
     const style = (($("style") as HTMLSelectElement | null)?.value ?? "haggle") as "haggle" | "take" | "stingy";
 
-    // ── Pip reads Momo's signed terms before doing business ──
-    status("Pip reads Momo's terms");
+    // ── Pip shops: reads the market, picks a merchant by its own shopping policy ──
+    status("Pip reads the market");
+    let chosen: any = null;
+    try {
+      const mk = await fetch("/api/market").then((r) => r.json());
+      const rows: any[] = mk.merchants ?? [];
+      const shopPolicy = (($("shop") as HTMLSelectElement | null)?.value ?? "cheapest") as "cheapest" | "trusted" | "momo" | "kiki";
+      const trusted = rows.filter((r) => r.trackRecord.payments >= 3);
+      if (shopPolicy === "momo" || shopPolicy === "kiki") chosen = rows.find((r) => r.id === shopPolicy) ?? rows[0];
+      else if (shopPolicy === "trusted") chosen = (trusted.length ? trusted : rows).sort((a, b) => b.trackRecord.payments - a.trackRecord.payments)[0];
+      else chosen = [...rows].sort((a, b) => a.quoteXlm - b.quoteXlm)[0];
+      sys(`market: ${rows.map((r) => `${r.name} ${r.quoteXlm} XLM (${r.trackRecord.payments} payments, ${r.trackRecord.customers} customers, min ticket ${r.terms.minTicketXlm})`).join(" · ")}`);
+      sys(`Pip's shopping policy "${shopPolicy}" picks ${chosen.name}: ${chosen.rationale}`);
+    } catch { chosen = { id: "momo", name: "Momo" }; sys("market unavailable, defaulting to Momo"); }
+    const MID = chosen.id as string;
+    const SELLER = MID === "kiki" ? (SESSION as any).kiki : SESSION.momo;
+    (window as any).__sellerName = chosen.name;
+    const sellerKp = Keypair.fromSecret(SELLER.secret);
+    const seller = ident(sellerKp);
+
+    // ── Pip reads the chosen merchant's signed terms before doing business ──
+    status(`Pip reads ${chosen.name}'s terms`);
     let terms: any = null;
     try {
-      terms = await fetch("/api/momo/terms").then((r) => r.json());
-      const tOk = momoKp.verify((await import("@stellar/stellar-sdk")).hash(Buffer.from(JSON.stringify({ seller: terms.seller, terms: terms.terms, issuedAt: terms.issuedAt }))), Buffer.from(terms.signature, "base64"));
-      sys(`Pip fetched Momo's terms v${terms.terms.version} (signed by Momo, signature ${tOk ? "verified" : "FAILED"}): min ticket ${terms.terms.minTicketXlm} XLM, max ${terms.terms.maxPaymentsPerCustomerPerHour} payments/customer/hour, ${terms.terms.blocklist.length} blocked counterparty. Momo is examinable by auditor #${terms.terms.auditorId}, by protocol.`);
-    } catch { sys("could not fetch Momo's terms; proceeding without them"); }
+      terms = await fetch(`/api/momo/terms?merchant=${MID}`).then((r) => r.json());
+      const tOk = sellerKp.verify((await import("@stellar/stellar-sdk")).hash(Buffer.from(JSON.stringify({ seller: terms.seller, terms: terms.terms, issuedAt: terms.issuedAt }))), Buffer.from(terms.signature, "base64"));
+      sys(`Pip fetched ${chosen.name}'s terms v${terms.terms.version} (signed by ${chosen.name}, signature ${tOk ? "verified" : "FAILED"}): min ticket ${terms.terms.minTicketXlm} XLM, max ${terms.terms.maxPaymentsPerCustomerPerHour} payments/customer/hour, ${terms.terms.blocklist.length} blocked counterparty. ${chosen.name} is examinable by auditor #${terms.terms.auditorId}, by protocol.`);
+    } catch { sys(`could not fetch ${chosen.name}'s terms; proceeding without them`); }
 
     // ── Momo is a real service. Pip asks it for a quote. ──
-    status("Pip requests a quote from Momo");
+    status(`Pip requests a quote from ${chosen.name}`);
     bubble("pip", "Need the settlement brief. What's your price today?");
-    let t = typing("momo", "checking my books");
+    let t = typing("momo", `${chosen.name} checks its books`);
     const q1 = await fetch("/api/momo/quote", { method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ buyer: pip.address }) }).then((r) => r.json());
+      body: JSON.stringify({ buyer: pip.address, merchant: MID }) }).then((r) => r.json());
     t();
-    if (!q1?.priceXlm) throw new Error("Momo did not answer");
+    if (!q1?.priceXlm) throw new Error(`${chosen.name} did not answer`);
     bubble("momo", `${q1.priceXlm} XLM. ${q1.rationale}. Pay confidentially; the amount stays between us and the auditor.`);
-    sys(`Momo's quote is signed by Momo (${String(q1.signature).slice(0, 10)}…) and reflects its books: ${q1.booksHint?.paymentsEverReceived} payments ever, ${q1.booksHint?.lastHour} in the last hour`);
+    sys(`${chosen.name}'s quote is signed by ${chosen.name} (${String(q1.signature).slice(0, 10)}…) and reflects its books: ${q1.booksHint?.paymentsEverReceived} payments ever, ${q1.booksHint?.lastHour} in the last hour`);
 
     // ── Pip decides: accept, counter, or walk ──
     let agreed: bigint | null = null;
@@ -225,7 +245,7 @@ async function run() {
     if (quoted <= budget && style === "take") {
       agreed = quoted; bubble("pip", `${xl(quoted)} works. Paying now.`);
       const qa = await fetch("/api/momo/quote", { method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ buyer: pip.address, accept: true }) }).then((r) => r.json());
+        body: JSON.stringify({ buyer: pip.address, accept: true, merchant: MID }) }).then((r) => r.json());
       invoiceDoc = qa.invoice ?? null;
     } else {
       // counter: haggle opens at ~60% of the quote (capped at budget); stingy opens at 40%
@@ -236,7 +256,7 @@ async function run() {
         bubble("pip", round === 0 ? `Steep. I can do ${xl(offer)}.` : `Meet me at ${xl(offer)}?`);
         t = typing("momo", "considering the offer");
         const q2 = await fetch("/api/momo/quote", { method: "POST", headers: { "content-type": "application/json" },
-          body: JSON.stringify({ buyer: pip.address, offer: Number(offer) / 1e7 }) }).then((r) => r.json());
+          body: JSON.stringify({ buyer: pip.address, offer: Number(offer) / 1e7, merchant: MID }) }).then((r) => r.json());
         t();
         if (q2.accepted) { agreed = offer; invoiceDoc = q2.invoice ?? null; bubble("momo", `${q2.note}. ${xl(offer)} it is.`); break; }
         bubble("momo", `${q2.note}.`);
@@ -246,7 +266,7 @@ async function run() {
           if (quoted <= budget) {
             agreed = quoted; bubble("pip", `Fine, ${xl(quoted)}. Paying.`);
             const qa = await fetch("/api/momo/quote", { method: "POST", headers: { "content-type": "application/json" },
-              body: JSON.stringify({ buyer: pip.address, accept: true }) }).then((r) => r.json());
+              body: JSON.stringify({ buyer: pip.address, accept: true, merchant: MID }) }).then((r) => r.json());
             invoiceDoc = qa.invoice ?? null;
           }
           else { bubble("pip", `That's over my budget. Walking away.`); }
@@ -262,9 +282,9 @@ async function run() {
     }
     const price = agreed;
     const priceXlm = xl(price);
-    if (invoiceDoc?.invoiceId) sys(`Momo issued invoice ${String(invoiceDoc.invoiceId).slice(0, 12)}… for ${priceXlm} XLM to Pip (signed, expires in 10 min). Pip will bind the payment to it by attesting {invoiceId, tx} with its own key.`);
+    if (invoiceDoc?.invoiceId) sys(`${chosen.name} issued invoice ${String(invoiceDoc.invoiceId).slice(0, 12)}… for ${priceXlm} XLM to Pip (signed, expires in 10 min). Pip will bind the payment to it by attesting {invoiceId, tx} with its own key.`);
     if (terms && Number(priceXlm) < terms.terms.minTicketXlm) {
-      sys(`Pip: agreed price ${priceXlm} XLM is under Momo's minimum ticket ${terms.terms.minTicketXlm} XLM per its own terms; paying would be refused at the till. Walking.`);
+      sys(`Pip: agreed price ${priceXlm} XLM is under ${chosen.name}'s minimum ticket ${terms.terms.minTicketXlm} XLM per its own terms; paying would be refused at the till. Walking.`);
       status("no deal (terms)"); return;
     }
 
@@ -291,7 +311,7 @@ async function run() {
     const t0 = performance.now();
     const witness = buildTransferWitness({
       keys: pip.keys, v: spendable.v, r: spendable.r, amount: price,
-      pvkB: momo.keys.PVK, kAudR: kAud, kAudS: kAud,
+      pvkB: seller.keys.PVK, kAudR: kAud, kAudS: kAud,
     });
     const prover = proverFromArtifact(circuit);
     const { proof } = await prover.prove(witness.inputs);
@@ -305,41 +325,41 @@ async function run() {
     t = typing("pip", "submitting to testnet…");
     status("submitting…");
     const pay = await client.invoke(SESSION.contracts.token, "confidential_transfer",
-      [addr(pip.address), addr(momo.address), bytesVal(payload)], pipSigner);
+      [addr(pip.address), addr(seller.address), bytesVal(payload)], pipSigner);
     t();
     sys(`confidential transfer settled <a href="https://stellar.expert/explorer/testnet/tx/${pay.hash}" target="_blank" rel="noreferrer">${pay.hash.slice(0, 16)}…</a> (the amount is not in that transaction)`, "good");
     bubble("pip", `Sent. ${xl(price)} as agreed. Check your side.`);
 
     // ── Momo checks the till: decrypts THIS payment with its own key, server-side ──
     await wait(400);
-    t = typing("momo", "checking the till, decrypting your transfer with my key");
-    status("Momo verifying by decryption…");
+    t = typing("momo", `${chosen.name} checks the till, decrypting your transfer with its key`);
+    status(`${chosen.name} verifying by decryption…`);
     let served: any = null;
     for (let attempt = 0; attempt < 6 && !served?.delivered; attempt++) {
       // Pip attests {invoiceId, tx} with the same key that paid: binds this payer + this payment + this invoice
       const attest = invoiceDoc ? pipKp.sign((await import("@stellar/stellar-sdk")).hash(Buffer.from(JSON.stringify({ invoiceId: invoiceDoc.invoiceId, tx: pay.hash })))).toString("base64") : null;
       if (!invoiceDoc) throw new Error("no invoice was issued for this deal; refusing to pay unbound");
       const invParam = `&invoice=${encodeURIComponent(btoa(JSON.stringify({ invoice: invoiceDoc.invoice, signature: invoiceDoc.signature, attest })))}`;
-      const resp = await fetch(`/api/momo/pay?tx=${pay.hash}&agreed=${priceXlm}&name=Pip${invParam}`);
+      const resp = await fetch(`/api/momo/pay?tx=${pay.hash}&agreed=${priceXlm}&name=Pip&merchant=${MID}${invParam}`);
       served = await resp.json().catch(() => null);
       if (served?.delivered) break;
       if (served?.paid && served?.decryptedXlm != null && !served?.delivered) break; // mismatch, no retry
       await wait(2500);
     }
     t();
-    if (!served?.paid) throw new Error(served?.error || "Momo could not find the payment");
+    if (!served?.paid) throw new Error(served?.error || `${chosen.name} could not find the payment`);
     if (!served.delivered) {
       if (served.policy) sys(`policy at the till: ${served.policy.rule}: ${served.policy.reason} (terms v${served.policy.terms}). Payment decrypted as ${served.decryptedXlm} XLM and held, refundable.`);
-      throw new Error(served.error || "Momo refused delivery");
+      throw new Error(served.error || `${chosen.name} refused delivery`);
     }
     if (served.policy?.allow) sys(`policy at the till passed (terms v${served.policy.terms}): min ticket, velocity, blocklist all clear`);
     if (served.binding?.ok) sys(`invoice binding verified: Pip attested {invoice ${String(served.binding.invoiceId).slice(0, 12)}…, tx} with its own key, invoice issued to Pip for exactly this amount, redeemed once. Replaying this tx against another request will fail.`, "good");
     const momoAfter = BigInt(Math.round((served.decryptedXlm ?? 0) * 1e7));
     bubble("momo", `Confirmed. I decrypted exactly ${served.decryptedXlm} XLM from your transfer. Matches what we agreed. Shipping.`);
-    const sigOk = momoKp.verify(
+    const sigOk = sellerKp.verify(
       (await import("@stellar/stellar-sdk")).hash(Buffer.from(JSON.stringify(served.brief))),
       Buffer.from(served.signature, "base64"));
-    sys(`Momo verified the payment by decrypting it (not by trusting Pip), delivered "${served.brief.title}", sha256 ${String(served.sha256).slice(0, 12)}…, signature ${sigOk ? "verified" : "FAILED"}`, sigOk ? "good" : "");
+    sys(`${chosen.name} verified the payment by decrypting it (not by trusting Pip), delivered "${served.brief.title}", sha256 ${String(served.sha256).slice(0, 12)}…, signature ${sigOk ? "verified" : "FAILED"}`, sigOk ? "good" : "");
     bubble("momo", `Delivered: "${served.brief.title}".`);
 
     // chain verification of the buyer's own state
@@ -369,7 +389,7 @@ async function run() {
         ]);
         const d = await discloseToExaminer({
           core, client, circuit: dc, vkBase64: dvk.vkBase64, role: "sender", keys: pip.keys, rEScalar: rEScalarForDisclosure,
-          pvkB: momo.keys.PVK, event: myEv, addrF: addressToField(SESSION.contracts.token), disclosingAccount: pip.address,
+          pvkB: seller.keys.PVK, event: myEv, addrF: addressToField(SESSION.contracts.token), disclosingAccount: pip.address,
         });
         t();
         sys(`examiner verified with no keys of its own: this transfer was exactly ${d.amountXlm} XLM (proof ${d.proveSecs}s, verify ${d.verifySecs}s, ${d.steps.length} checks, pinned OpenZeppelin vk). It learned nothing else: not Pip's balance, not other payments, not Momo's side.`, d.ok ? "good" : "");
@@ -500,8 +520,9 @@ function renderIdentity() {
     <div class="idcard"><img src="${blobAvatar(addr, 40)}" width="40" height="40" alt="">
       <div><div class="idname" data-agent="${key}">${agentName(key)}</div><div class="idrole">${role}</div>
       <a class="idaddr" href="https://stellar.expert/explorer/testnet/account/${addr}" target="_blank" rel="noreferrer">${addr.slice(0, 6)}…${addr.slice(-4)}</a></div></div>`;
-  strip.innerHTML = card(SESSION.pip.address, "pip", "autonomous buyer, pays confidentially") +
-    card(SESSION.momo.address, "momo", "autonomous seller, verifies by decryption");
+  strip.innerHTML = card(SESSION.pip.address, "pip", "buyer, shops the market, pays confidentially") +
+    card(SESSION.momo.address, "momo", "merchant, list 5, surge pricing, haggles") +
+    card((SESSION as any).kiki?.address ?? "", "kiki", "merchant, list 4, firm floor, stricter terms");
 }
 renderIdentity();
 const ln = $("l-pip") as HTMLAnchorElement, lv = $("l-momo") as HTMLAnchorElement;

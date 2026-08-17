@@ -16,7 +16,8 @@
  * balance and Momo can refund it with a confidential_transfer back. Delivery
  * is what policy withholds, never funds. Testnet.
  */
-import { signGoods, MOMO, STROOP } from "./momo.js";
+import { signGoods, MOMO, STROOP, MERCHANTS } from "./momo.js";
+import type { MerchantProfile } from "./merchants.js";
 
 export type Terms = {
   version: string; minTicketXlm: number; maxPaymentsPerCustomerPerHour: number;
@@ -42,21 +43,22 @@ export const POLICY_LIVE_LEDGER = 4182200; // terms v2026-08-17.1 took effect he
 export type PolicyDecision = { allow: boolean; rule?: string; reason?: string; terms: string };
 
 /** Signed, fetchable terms so a buyer can bind Momo to them before paying. */
-export function signedTerms() {
-  const body = { seller: MOMO, terms: TERMS, issuedAt: new Date().toISOString() };
-  return { ...body, ...signGoods(body) };
+export function signedTerms(M: MerchantProfile = MERCHANTS.momo) {
+  const terms = { ...TERMS, minTicketXlm: M.minTicketXlm, maxPaymentsPerCustomerPerHour: M.maxPaymentsPerCustomerPerHour, merchant: M.id };
+  const body = { seller: M.address, terms, issuedAt: new Date().toISOString() };
+  return { ...body, ...signGoods(body, M) };
 }
 
 /** Apply policy to a decrypted, located payment. `history` = this customer's inbound ledgers. */
-export function decide(input: { from: string; paidXlm: number; ledger: number; customerLedgers: number[] }): PolicyDecision {
+export function decide(input: { from: string; paidXlm: number; ledger: number; customerLedgers: number[] }, M: MerchantProfile = MERCHANTS.momo): PolicyDecision {
   const t = TERMS.version;
   if (input.ledger < POLICY_LIVE_LEDGER) return { allow: true, terms: "pre-policy" };
   const blocked = TERMS.blocklist.find((b) => b.address === input.from);
   if (blocked) return { allow: false, rule: "blocklist", reason: blocked.reason, terms: t };
-  if (input.paidXlm < TERMS.minTicketXlm) return { allow: false, rule: "min-ticket", reason: `paid ${input.paidXlm} XLM, minimum is ${TERMS.minTicketXlm} XLM`, terms: t };
+  if (input.paidXlm < M.minTicketXlm) return { allow: false, rule: "min-ticket", reason: `paid ${input.paidXlm} XLM, minimum is ${M.minTicketXlm} XLM`, terms: t };
   const windowLedgers = 720; // ~1 hour
   // prior payments only: strictly earlier ledgers within the window. The payment being judged never counts against itself.
   const prior = input.customerLedgers.filter((l) => l < input.ledger && input.ledger - l < windowLedgers).length;
-  if (prior >= TERMS.maxPaymentsPerCustomerPerHour) return { allow: false, rule: "velocity", reason: `${prior} prior payments from this customer in the last hour, limit ${TERMS.maxPaymentsPerCustomerPerHour}`, terms: t };
+  if (prior >= M.maxPaymentsPerCustomerPerHour) return { allow: false, rule: "velocity", reason: `${prior} prior payments from this customer in the last hour, limit ${M.maxPaymentsPerCustomerPerHour}`, terms: t };
   return { allow: true, terms: t };
 }

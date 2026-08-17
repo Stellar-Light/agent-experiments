@@ -5,7 +5,7 @@
  * was agreed. Only then does it deliver, signed. The buyer's word is never
  * taken for anything; the buyer's amount is never public.
  */
-import { momoBooks, signGoods, MOMO, STROOP } from "../../lib/momo.js";
+import { momoBooks, signGoods, STROOP, merchantById, kpFor } from "../../lib/momo.js";
 import { appendLedger } from "../../lib/ledger.js";
 import { decide } from "../../lib/policy.js";
 import { bindInvoice, checkRedeem } from "../../lib/invoice.js";
@@ -18,11 +18,12 @@ export default async function handler(req: any, res: any) {
   const tx = String(req.query?.tx ?? "").toLowerCase();
   const agreed = Number(req.query?.agreed ?? NaN);
   const name = String(req.query?.name ?? "agent").slice(0, 24);
+  const M = merchantById(req.query?.merchant);
   if (!/^[0-9a-f]{64}$/.test(tx)) { res.status(400).json({ error: "tx hash required" }); return; }
   try {
-    const { inbound, engine } = await momoBooks();
+    const { inbound, engine } = await momoBooks(M);
     const ev: any = inbound.find((e: any) => String(e.txHash).toLowerCase() === tx);
-    if (!ev) { res.status(402).json({ paid: false, error: "no confidential transfer to Momo found in that transaction (yet); retry in a few seconds" }); return; }
+    if (!ev) { res.status(402).json({ paid: false, error: `no confidential transfer to ${M.name} found in that transaction (yet); retry in a few seconds` }); return; }
     const paidXlm = typeof ev.amount === "number" ? ev.amount : Number(engine.decryptIncoming(ev.rE, ev.vTilde, ev.sigma).vTx) / 1e7;
     if (Number.isFinite(agreed) && Math.abs(paidXlm - agreed) > 1e-7) {
       res.status(402).json({ paid: true, delivered: false, decryptedXlm: paidXlm, error: `you paid ${paidXlm} XLM but we agreed ${agreed}` });
@@ -36,7 +37,7 @@ export default async function handler(req: any, res: any) {
     try {
       const presented = req.query?.invoice ? JSON.parse(Buffer.from(String(req.query.invoice), "base64").toString("utf8")) : null;
       if (presented?.invoice && presented?.signature && presented?.attest) {
-        const momoKp = Keypair.fromSecret(SESSION.momo.secret);
+        const momoKp = kpFor(M);
         const id = bindInvoice(presented.invoice, presented.signature, (payload, sig) => momoKp.verify(payload, sig));
         if (!id) bound = { ok: false, reason: "presented invoice is not signed by Momo" };
         else {
@@ -55,7 +56,7 @@ export default async function handler(req: any, res: any) {
 
     // ── policy at the till: Momo's own terms, applied to the decrypted payment ──
     const customerLedgers = (inbound as any[]).filter((e) => e.from === ev.from).map((e) => e.ledger as number);
-    const verdict = decide({ from: ev.from, paidXlm, ledger: ev.ledger, customerLedgers });
+    const verdict = decide({ from: ev.from, paidXlm, ledger: ev.ledger, customerLedgers }, M);
     if (!verdict.allow) {
       res.status(403).json({ paid: true, delivered: false, decryptedXlm: paidXlm, policy: verdict,
         error: `payment received (${paidXlm} XLM, decrypted) but Momo's policy declined delivery: ${verdict.rule}: ${verdict.reason}. Funds are refundable, not seized.` });
@@ -70,7 +71,7 @@ export default async function handler(req: any, res: any) {
         "Reproduce: https://github.com/Stellar-Light/confidential-agent-commerce",
       ],
     };
-    const signed = signGoods(brief);
+    const signed = signGoods(brief, M);
     await appendLedger({ at: new Date().toISOString(), tx, ledger: ev.ledger, from: ev.from, name, xlm: paidXlm });
     res.status(200).json({ paid: true, delivered: true, decryptedXlm: paidXlm, policy: verdict, binding: { ok: true, invoiceId: bound.invoiceId }, brief, ...signed });
   } catch (e: any) { res.status(500).json({ error: String(e?.message ?? e) }); }

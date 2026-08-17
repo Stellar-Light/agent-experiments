@@ -19,7 +19,8 @@
  */
 import { Buffer } from "node:buffer";
 import { hash } from "@stellar/stellar-sdk";
-import { signGoods, MOMO } from "./momo.js";
+import { signGoods, MOMO, MERCHANTS } from "./momo.js";
+import type { MerchantProfile } from "./merchants.js";
 
 export type Invoice = { buyer: string; priceXlm: number; nonce: string; expiresAt: number; seller: string };
 const issued = new Map<string, Invoice>();     // invoiceId -> invoice
@@ -28,12 +29,12 @@ const redeemed = new Map<string, string>();    // invoiceId -> tx that redeemed 
 export function canonical(inv: Invoice) { return JSON.stringify({ buyer: inv.buyer, priceXlm: inv.priceXlm, nonce: inv.nonce, expiresAt: inv.expiresAt, seller: inv.seller }); }
 export function invoiceId(inv: Invoice) { return hash(Buffer.from(canonical(inv))).toString("hex"); }
 
-export function issueInvoice(buyer: string, priceXlm: number) {
+export function issueInvoice(buyer: string, priceXlm: number, M: MerchantProfile = MERCHANTS.momo) {
   const nonce = Buffer.from(crypto.getRandomValues(new Uint8Array(16))).toString("hex");
-  const inv: Invoice = { buyer, priceXlm, nonce, expiresAt: Date.now() + 10 * 60_000, seller: MOMO };
+  const inv: Invoice = { buyer, priceXlm, nonce, expiresAt: Date.now() + 10 * 60_000, seller: M.address };
   const id = invoiceId(inv);
   issued.set(id, inv);
-  const signed = signGoods({ invoiceId: id, ...inv });
+  const signed = signGoods({ invoiceId: id, ...inv }, M);
   return { invoiceId: id, invoice: inv, ...signed };
 }
 

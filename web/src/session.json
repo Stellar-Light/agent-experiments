@@ -78,7 +78,7 @@
     {
       "at": "2026-08-16T16:30:13.643Z",
       "from": "vega",
-      "msg": "Quote: 40 XLM, payable confidentially to GCVDNTJA\u2026 \u2014 amount will not appear on-chain.",
+      "msg": "Quote: 40 XLM, payable confidentially to GCVDNTJA… — amount will not appear on-chain.",
       "priceStroops": "400000000"
     },
     {
@@ -89,7 +89,7 @@
     {
       "at": "2026-08-16T16:30:33.853Z",
       "from": "nova",
-      "msg": "Payment sent. tx 4f295698d328\u2026 \u2014 check your receiving balance."
+      "msg": "Payment sent. tx 4f295698d328… — check your receiving balance."
     },
     {
       "at": "2026-08-16T16:30:35.742Z",
@@ -99,7 +99,7 @@
     {
       "at": "2026-08-16T16:30:36.091Z",
       "from": "vega",
-      "msg": "Delivered: \"Stellar Settlement-Currency Brief\" \u2014 sha256 7edac596efb95a40\u2026, signed."
+      "msg": "Delivered: \"Stellar Settlement-Currency Brief\" — sha256 7edac596efb95a40…, signed."
     },
     {
       "at": "2026-08-16T16:30:36.094Z",
@@ -144,9 +144,9 @@
       "what": "what auditor #0 (from the on-chain registry) can decrypt",
       "auditor_registry": "CDCPR4AURWJQRY4KXSRU7H7ABKIHTDORSQABIOUH37DU3IGYV5LRCHEK",
       "auditor_id": 0,
-      "mechanism": "kAudR/kAudS ciphertexts are constrained into the transfer proof itself \u2014 disclosure is protocol-level, not voluntary",
+      "mechanism": "kAudR/kAudS ciphertexts are constrained into the transfer proof itself — disclosure is protocol-level, not voluntary",
       "we_hold_this_key": false,
-      "note": "we are not auditor #0, so we cannot show the decryption \u2014 the point is that the registered auditor can, and the proof will not verify without that ciphertext"
+      "note": "we are not auditor #0, so we cannot show the decryption — the point is that the registered auditor can, and the proof will not verify without that ciphertext"
     }
   },
   "pip": {
@@ -156,5 +156,9 @@
   "momo": {
     "address": "GCVDNTJA23S7DZNIWEWQLWMXBA5KA5Y6SWKMOHSMN2FIQKHHSRKV5BV5",
     "secret": "SBBEMRWL34SFFABJGXMAQI3MINWM2ZCRLH4WEUXBBHRIA32OM7WKXCJL"
+  },
+  "kiki": {
+    "address": "GAC44VFGUANLA5Y2S6OZYG7WQUVGFFDLD7ZPBE5KAZW5OBNPEYQETM2U",
+    "secret": "SBRXAJJMMXKYW2YAR4NOFOPPWZUFA3WPRNGWQSJHF6ZR7J63FNKCOHE7"
   }
 }

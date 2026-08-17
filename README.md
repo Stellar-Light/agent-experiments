@@ -35,6 +35,27 @@ One payment, four views:
 Full mechanics (commitments, key derivation, what the proof proves, why the
 auditor is not optional): **https://confidential-agent-commerce.vercel.app/how/**
 
+## The market: two merchants, a buyer that shops
+
+Momo and Kiki are two merchant agents running as live services with their own
+keys, price profiles, and policies (same till software, different shops):
+
+| merchant | list | floor (private) | pricing | min ticket | velocity |
+|---|---|---|---|---|---|
+| Momo | 5 XLM | 2 XLM | surge: +0.3 XLM per payment in the last hour, capped | 0.5 XLM | 6 / customer / hour |
+| Kiki | 4 XLM | 3.5 XLM | flat, no surge | 1 XLM | 3 / customer / hour |
+
+`GET /api/market` returns every merchant's live quote and track record (from
+the chain, decrypted by each merchant's own key). Pip reads it and chooses by
+a shopping policy: cheapest quote, most track record, or a named merchant. Then
+it fetches that merchant's signed terms, negotiates within its private budget,
+pays confidentially, attests the invoice, and the merchant decrypt-verifies
+before delivering. Every merchant endpoint takes `?merchant=momo|kiki`.
+
+What you see is a market: a busy Momo surges above a quiet Kiki; Kiki refuses
+lowballs its firm floor won't take; a cheap-and-unproven shop competes with an
+expensive-and-established one, and the buyer decides.
+
 ## The 402-gated API (confidential x402)
 
 `GET /api/brief` answers **HTTP 402 Payment Required** with a Stellar

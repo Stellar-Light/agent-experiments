@@ -13,7 +13,7 @@ import { ChainClient, hybridFetchEvents } from "stellar-confidential-token-sdk/c
 
 const S = JSON.parse(readFileSync("src/session.json", "utf8"));
 const RPC = "https://soroban-testnet.stellar.org";
-const AGENTS = [["momo", S.momo], ["pip", S.pip]];
+const AGENTS = [["momo", S.momo], ["pip", S.pip], ...(S.kiki ? [["kiki", S.kiki]] : [])];
 const outAll = {};
 const prevPath = "public/checkpoint.json";
 const prevAll = existsSync(prevPath) ? JSON.parse(readFileSync(prevPath, "utf8")) : null;

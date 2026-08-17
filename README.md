@@ -56,6 +56,43 @@ What you see is a market: a busy Momo surges above a quiet Kiki; Kiki refuses
 lowballs its firm floor won't take; a cheap-and-unproven shop competes with an
 expensive-and-established one, and the buyer decides.
 
+## Confidential MPP: a real Machine Payments Protocol charge, settled privately
+
+`GET /api/mpp/brief?merchant=momo` speaks the [Machine Payments Protocol](https://mpp.dev)
+(HTTP Payment Authentication) with a new payment method, `stellar` /
+`confidential-charge`: a faithful sibling of the official `stellar`/`charge`
+method (draft-stellar-charge-00) whose settlement is an OpenZeppelin
+`confidential_transfer` instead of a SEP-41 `transfer`. The amount never
+appears on-chain; the merchant verifies by decrypting it with its own key.
+
+```
+GET /api/mpp/brief?merchant=momo
+  -> 402  WWW-Authenticate: Payment id=… method="stellar" intent="confidential-charge"
+          request={amount, currency=<confidential token>, recipient, settlement:"confidential"}
+pay the challenged amount with confidential_transfer, then
+GET /api/mpp/brief?merchant=momo   Authorization: Payment <credential {type:"signedHash", hash, sourceSignature}>
+  -> 200  Payment-Receipt: …   (merchant decrypted the amount; the chain never showed it)
+```
+
+The credential is the standard push-mode shape: `sourceSignature` is the
+payer's Ed25519 signature over `"{challenge.id}:{hash}"`, binding this payer,
+this payment, and this challenge (mppx HMAC-binds and expires challenges).
+The verifier (`web/lib/mpp/server.ts`) checks the invocation is a
+`confidential_transfer` to the merchant on the confidential token, verifies
+the payer signature against the on-chain sender, then decrypts the transfer
+with the merchant's key and compares it with the challenged amount.
+
+Buy over MPP from your own agent:
+
+```sh
+cd agents && node mpp-buy.mjs --merchant momo   # or --merchant kiki
+```
+
+To our knowledge the first confidential-settlement MPP payment method. Built
+on `mppx` (the protocol core); `@stellar/mpp`'s SEP-41 charge verifier cannot
+accept a confidential transfer by design (it checks `transfer` events), which
+is why this is a new method rather than a configuration.
+
 ## The 402-gated API (confidential x402)
 
 `GET /api/brief` answers **HTTP 402 Payment Required** with a Stellar

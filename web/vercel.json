@@ -1,0 +1,22 @@
+{
+  "functions": {
+    "api/momo/refund.ts": {
+      "maxDuration": 30
+    },
+    "api/momo/pay.ts": {
+      "maxDuration": 30
+    },
+    "api/momo/quote.ts": {
+      "maxDuration": 30
+    },
+    "api/momo/feed.ts": {
+      "maxDuration": 30
+    },
+    "api/momo/health.ts": {
+      "maxDuration": 30
+    },
+    "api/brief.ts": {
+      "maxDuration": 30
+    }
+  }
+}

@@ -7,6 +7,7 @@
  */
 import { momoBooks, signGoods, MOMO, STROOP } from "../../lib/momo.js";
 import { appendLedger } from "../../lib/ledger.js";
+import { decide } from "../../lib/policy.js";
 
 export default async function handler(req: any, res: any) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -23,6 +24,14 @@ export default async function handler(req: any, res: any) {
       res.status(402).json({ paid: true, delivered: false, decryptedXlm: paidXlm, error: `you paid ${paidXlm} XLM but we agreed ${agreed}` });
       return;
     }
+    // ── policy at the till: Momo's own terms, applied to the decrypted payment ──
+    const customerLedgers = (inbound as any[]).filter((e) => e.from === ev.from).map((e) => e.ledger as number);
+    const verdict = decide({ from: ev.from, paidXlm, ledger: ev.ledger, customerLedgers });
+    if (!verdict.allow) {
+      res.status(403).json({ paid: true, delivered: false, decryptedXlm: paidXlm, policy: verdict,
+        error: `payment received (${paidXlm} XLM, decrypted) but Momo's policy declined delivery: ${verdict.rule}: ${verdict.reason}. Funds are refundable, not seized.` });
+      return;
+    }
     const brief = {
       title: "Stellar Settlement-Currency Brief", asOf: new Date().toISOString(),
       buyer: ev.from, paidVia: { tx, ledger: ev.ledger, settlement: "confidential; Momo decrypted the amount with its own key, the chain never saw it" },
@@ -34,6 +43,6 @@ export default async function handler(req: any, res: any) {
     };
     const signed = signGoods(brief);
     await appendLedger({ at: new Date().toISOString(), tx, ledger: ev.ledger, from: ev.from, name, xlm: paidXlm });
-    res.status(200).json({ paid: true, delivered: true, decryptedXlm: paidXlm, brief, ...signed });
+    res.status(200).json({ paid: true, delivered: true, decryptedXlm: paidXlm, policy: verdict, brief, ...signed });
   } catch (e: any) { res.status(500).json({ error: String(e?.message ?? e) }); }
 }

@@ -1,0 +1,124 @@
+{
+  "done": [
+    {
+      "tx": "13608854431ae96988572914beb2af6aadc31e835a8eedb9b318c1e063163918",
+      "refundTx": "ab51c59be88c0d62a944d475fc579a0bec68707ea38db897928a9372870c341b",
+      "to": "GC26G7DD3KTZQCBCKA3A66ZG5ES5ZSWRQZIPOE2WGXRXK5AWV6HYIQBR",
+      "amountXlm": 0.3,
+      "at": "2026-08-17T02:27:56.614Z"
+    },
+    {
+      "tx": "c1d0996aff16267fa0c3221d71d81d4a494351b50178d039a895069805192303",
+      "refundTx": "3d269ef19ff2f98d33b7f7bc0dd0df8d9243fe1f79915548014736fca94fd15a",
+      "to": "GDE76W4TRKRFTU7JREGV5ZJ4CUHPLDYFJWJE6P2JUHW3VMXDS6SLOG7T",
+      "amountXlm": 633.1774151,
+      "at": "2026-08-17T02:26:30.082Z",
+      "note": "pre-policy payment returned during a worker bug (retroactive velocity); delivered goods were NOT revoked; testnet, funds returned to payer"
+    },
+    {
+      "tx": "4e74d4df7f4cf17d32693ec7c93755b9823827a76612e640f6550e464e2d0e63",
+      "refundTx": "0bac607c92e5c3acd57141eacae4e14000e511eee738e3f32fe31ee1829b181c",
+      "to": "GDE76W4TRKRFTU7JREGV5ZJ4CUHPLDYFJWJE6P2JUHW3VMXDS6SLOG7T",
+      "amountXlm": 633.0953414,
+      "at": "2026-08-17T02:26:36.547Z",
+      "note": "pre-policy payment returned during a worker bug (retroactive velocity); delivered goods were NOT revoked; testnet, funds returned to payer"
+    },
+    {
+      "tx": "986dbbe1fd4cf0e349ee9420959f4afd9e6092c39abe9b0ca05b1676d832d8dc",
+      "refundTx": "f03bc96442baca0e0d8d5eda7b0bd4a1f1e6ce217354dc212a443c0e0f0752b9",
+      "to": "GDE76W4TRKRFTU7JREGV5ZJ4CUHPLDYFJWJE6P2JUHW3VMXDS6SLOG7T",
+      "amountXlm": 1,
+      "at": "2026-08-17T02:26:40.538Z",
+      "note": "pre-policy payment returned during a worker bug (retroactive velocity); delivered goods were NOT revoked; testnet, funds returned to payer"
+    },
+    {
+      "tx": "6700c44f53dbc3e62d7f9c772fcbf31fb8d60ce64f02c7e642e1044ec544b9d2",
+      "refundTx": "8c98eafdc45d63295a8c840993f9e9821d2b2c76a5f3a7ea1c5620ce14625a35",
+      "to": "GDE76W4TRKRFTU7JREGV5ZJ4CUHPLDYFJWJE6P2JUHW3VMXDS6SLOG7T",
+      "amountXlm": 1,
+      "at": "2026-08-17T02:26:46.672Z",
+      "note": "pre-policy payment returned during a worker bug (retroactive velocity); delivered goods were NOT revoked; testnet, funds returned to payer"
+    },
+    {
+      "tx": "3ef56cdffbe62e3ed7d9c32a433be893090026d1a5c0a0558019e291742049aa",
+      "refundTx": "24aaef66e09f7737a65cd75df920edcaedc8b5cd55fec3bdf95cf470b147f0dc",
+      "to": "GDE76W4TRKRFTU7JREGV5ZJ4CUHPLDYFJWJE6P2JUHW3VMXDS6SLOG7T",
+      "amountXlm": 2,
+      "at": "2026-08-17T02:26:51.335Z",
+      "note": "pre-policy payment returned during a worker bug (retroactive velocity); delivered goods were NOT revoked; testnet, funds returned to payer"
+    },
+    {
+      "tx": "55182298a2dddf618e257466e3a55ebf842cfe072788cdff0d35187316ee504f",
+      "refundTx": "9e90ab29ddd47662815d1585e5f9bd93779cde8a8ddbd1c65a653e9bd7b47254",
+      "to": "GDE76W4TRKRFTU7JREGV5ZJ4CUHPLDYFJWJE6P2JUHW3VMXDS6SLOG7T",
+      "amountXlm": 190.1790084,
+      "at": "2026-08-17T02:26:55.463Z",
+      "note": "pre-policy payment returned during a worker bug (retroactive velocity); delivered goods were NOT revoked; testnet, funds returned to payer"
+    },
+    {
+      "tx": "7605b420e5bf85fd412ec7d5ec9bf925518686eb848620f432e3402a169e0b41",
+      "refundTx": "fac02729f6651c7940510369aea0964ca6882970f840ab7c5d6ef47ee87e1975",
+      "to": "GDE76W4TRKRFTU7JREGV5ZJ4CUHPLDYFJWJE6P2JUHW3VMXDS6SLOG7T",
+      "amountXlm": 3,
+      "at": "2026-08-17T02:27:01.618Z",
+      "note": "pre-policy payment returned during a worker bug (retroactive velocity); delivered goods were NOT revoked; testnet, funds returned to payer"
+    },
+    {
+      "tx": "48fef0e218e70af76b67bcb3f59f91dfc88866dd3e3e12ddfe05839bfa2006ed",
+      "refundTx": "e62e3ce10e4c8af0bab70d34bc8f90a3db1c8d632ed585512e825a0db39767e6",
+      "to": "GDE76W4TRKRFTU7JREGV5ZJ4CUHPLDYFJWJE6P2JUHW3VMXDS6SLOG7T",
+      "amountXlm": 100,
+      "at": "2026-08-17T02:27:10.740Z",
+      "note": "pre-policy payment returned during a worker bug (retroactive velocity); delivered goods were NOT revoked; testnet, funds returned to payer"
+    },
+    {
+      "tx": "6aef5330f53173848fbc70d983662ae9fe8e089c41d04ff0c412a32f68e6a6cf",
+      "refundTx": "8853a1c6bdea80fbe53df12c74b92b9f50813a79fcb0bb0c084f0d34ba69f5e6",
+      "to": "GDE76W4TRKRFTU7JREGV5ZJ4CUHPLDYFJWJE6P2JUHW3VMXDS6SLOG7T",
+      "amountXlm": 9,
+      "at": "2026-08-17T02:27:17.028Z",
+      "note": "pre-policy payment returned during a worker bug (retroactive velocity); delivered goods were NOT revoked; testnet, funds returned to payer"
+    },
+    {
+      "tx": "94b0ec5dde22381236c940bf115b43660ff134ebcd3bd91d0b7796bfb1013066",
+      "refundTx": "ecba7e01893c0ff962bc3d0f52187905ae0101484f1516a11361739d13026620",
+      "to": "GDE76W4TRKRFTU7JREGV5ZJ4CUHPLDYFJWJE6P2JUHW3VMXDS6SLOG7T",
+      "amountXlm": 2,
+      "at": "2026-08-17T02:27:25.618Z",
+      "note": "pre-policy payment returned during a worker bug (retroactive velocity); delivered goods were NOT revoked; testnet, funds returned to payer"
+    },
+    {
+      "tx": "f04df5078b9a8b64975493aa234029a4811875ec8e575d08809819849773f0fc",
+      "refundTx": "ff2fbb7459fdc893db1d0d7b7ff76ec01077378cb37033bafd1993e7afe9e177",
+      "to": "GDE76W4TRKRFTU7JREGV5ZJ4CUHPLDYFJWJE6P2JUHW3VMXDS6SLOG7T",
+      "amountXlm": 100,
+      "at": "2026-08-17T02:27:31.911Z",
+      "note": "pre-policy payment returned during a worker bug (retroactive velocity); delivered goods were NOT revoked; testnet, funds returned to payer"
+    },
+    {
+      "tx": "036837d6c3f993ade5099f4fd3e150b76764591258b16c136441993d5668c0b3",
+      "refundTx": "1cbf63a1d76d6c647766c005e4dab82159be841c3f74b63a0427ffcc5a25c329",
+      "to": "GDE76W4TRKRFTU7JREGV5ZJ4CUHPLDYFJWJE6P2JUHW3VMXDS6SLOG7T",
+      "amountXlm": 6,
+      "at": "2026-08-17T02:27:41.472Z",
+      "note": "pre-policy payment returned during a worker bug (retroactive velocity); delivered goods were NOT revoked; testnet, funds returned to payer"
+    },
+    {
+      "tx": "1270316e314dba66385933af59d315cc62cd209164e583452dfb8b05411b8733",
+      "refundTx": "10f1ebf02bc5050b6262ffc59975dca4cd03538a4bd9f549fa39d6f78cd10bbf",
+      "to": "GDE76W4TRKRFTU7JREGV5ZJ4CUHPLDYFJWJE6P2JUHW3VMXDS6SLOG7T",
+      "amountXlm": 1,
+      "at": "2026-08-17T02:27:45.828Z",
+      "note": "pre-policy payment returned during a worker bug (retroactive velocity); delivered goods were NOT revoked; testnet, funds returned to payer"
+    },
+    {
+      "tx": "d7d5016edcb2d0ab59087e626d2e710f101c1225b3797c502f6990c7bc18e42a",
+      "refundTx": "e1f00d8d409fb1fd58d47b4532ddea521113288e7a7ab11a16ab96adaadbdcf2",
+      "to": "GDE76W4TRKRFTU7JREGV5ZJ4CUHPLDYFJWJE6P2JUHW3VMXDS6SLOG7T",
+      "amountXlm": 3,
+      "at": "2026-08-17T02:27:50.440Z",
+      "note": "pre-policy payment returned during a worker bug (retroactive velocity); delivered goods were NOT revoked; testnet, funds returned to payer"
+    }
+  ],
+  "note": "refunds are confidential_transfers from Momo back to the payer for policy-declined payments; entries with a note were an over-refund bug, disclosed here rather than hidden"
+}

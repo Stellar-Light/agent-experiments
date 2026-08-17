@@ -196,6 +196,15 @@ async function run() {
     }
     const style = (($("style") as HTMLSelectElement | null)?.value ?? "haggle") as "haggle" | "take" | "stingy";
 
+    // ── Pip reads Momo's signed terms before doing business ──
+    status("Pip reads Momo's terms");
+    let terms: any = null;
+    try {
+      terms = await fetch("/api/momo/terms").then((r) => r.json());
+      const tOk = momoKp.verify((await import("@stellar/stellar-sdk")).hash(Buffer.from(JSON.stringify({ seller: terms.seller, terms: terms.terms, issuedAt: terms.issuedAt }))), Buffer.from(terms.signature, "base64"));
+      sys(`Pip fetched Momo's terms v${terms.terms.version} (signed by Momo, signature ${tOk ? "verified" : "FAILED"}): min ticket ${terms.terms.minTicketXlm} XLM, max ${terms.terms.maxPaymentsPerCustomerPerHour} payments/customer/hour, ${terms.terms.blocklist.length} blocked counterparty. Momo is examinable by auditor #${terms.terms.auditorId}, by protocol.`);
+    } catch { sys("could not fetch Momo's terms; proceeding without them"); }
+
     // ── Momo is a real service. Pip asks it for a quote. ──
     status("Pip requests a quote from Momo");
     bubble("pip", "Need the settlement brief. What's your price today?");
@@ -244,6 +253,10 @@ async function run() {
     }
     const price = agreed;
     const priceXlm = xl(price);
+    if (terms && Number(priceXlm) < terms.terms.minTicketXlm) {
+      sys(`Pip: agreed price ${priceXlm} XLM is under Momo's minimum ticket ${terms.terms.minTicketXlm} XLM per its own terms; paying would be refused at the till. Walking.`);
+      status("no deal (terms)"); return;
+    }
 
     // ── funds check + top-up if needed (real transactions, no proof required) ──
     status("checking balance…");
@@ -301,7 +314,11 @@ async function run() {
     }
     t();
     if (!served?.paid) throw new Error(served?.error || "Momo could not find the payment");
-    if (!served.delivered) throw new Error(served.error || "Momo refused delivery");
+    if (!served.delivered) {
+      if (served.policy) sys(`policy at the till: ${served.policy.rule}: ${served.policy.reason} (terms v${served.policy.terms}). Payment decrypted as ${served.decryptedXlm} XLM and held, refundable.`);
+      throw new Error(served.error || "Momo refused delivery");
+    }
+    if (served.policy?.allow) sys(`policy at the till passed (terms v${served.policy.terms}): min ticket, velocity, blocklist all clear`);
     const momoAfter = BigInt(Math.round((served.decryptedXlm ?? 0) * 1e7));
     bubble("momo", `Confirmed. I decrypted exactly ${served.decryptedXlm} XLM from your transfer. Matches what we agreed. Shipping.`);
     const sigOk = momoKp.verify(

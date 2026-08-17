@@ -8,6 +8,10 @@
 import { momoBooks, signGoods, MOMO, STROOP } from "../../lib/momo.js";
 import { appendLedger } from "../../lib/ledger.js";
 import { decide } from "../../lib/policy.js";
+import { bindInvoice, checkRedeem } from "../../lib/invoice.js";
+import { Buffer } from "node:buffer";
+import { xdr, Keypair, hash } from "@stellar/stellar-sdk";
+import { RPC, SESSION } from "../../lib/momo.js";
 
 export default async function handler(req: any, res: any) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -24,6 +28,31 @@ export default async function handler(req: any, res: any) {
       res.status(402).json({ paid: true, delivered: false, decryptedXlm: paidXlm, error: `you paid ${paidXlm} XLM but we agreed ${agreed}` });
       return;
     }
+    // ── invoice binding: the PAYER attests {invoiceId, tx} with the same key that signed the payment.
+    //    Soroban transactions cannot carry memos (the network rejects them at simulation), so the binding
+    //    is a signature by ev.from over the invoice id + tx hash: cryptographically ties this payer, this
+    //    payment, and this invoice. Invoices are single-use; tx hashes are unique; replay fails at redeem.
+    let bound: { ok: boolean; reason?: string; invoiceId?: string } = { ok: false, reason: "no invoice binding presented" };
+    try {
+      const presented = req.query?.invoice ? JSON.parse(Buffer.from(String(req.query.invoice), "base64").toString("utf8")) : null;
+      if (presented?.invoice && presented?.signature && presented?.attest) {
+        const momoKp = Keypair.fromSecret(SESSION.momo.secret);
+        const id = bindInvoice(presented.invoice, presented.signature, (payload, sig) => momoKp.verify(payload, sig));
+        if (!id) bound = { ok: false, reason: "presented invoice is not signed by Momo" };
+        else {
+          const payerKp = Keypair.fromPublicKey(ev.from);
+          const attestOk = payerKp.verify(hash(Buffer.from(JSON.stringify({ invoiceId: id, tx }))), Buffer.from(presented.attest, "base64"));
+          if (!attestOk) bound = { ok: false, reason: "payer attestation over {invoiceId, tx} does not verify against the on-chain payer" };
+          else { const r = checkRedeem(id, ev.from, paidXlm, tx); bound = { ...r, invoiceId: id }; }
+        }
+      }
+    } catch (e: any) { bound = { ok: false, reason: "binding parse error: " + String(e?.message ?? e) }; }
+    if (!bound.ok) {
+      res.status(402).json({ paid: true, delivered: false, decryptedXlm: paidXlm, binding: bound,
+        error: `payment received (${paidXlm} XLM, decrypted) but it is not bound to a valid invoice: ${bound.reason}. Get an invoice from /api/momo/quote, pay, then present {invoice, signature, attest: sign(sha256({invoiceId, tx}))}. Funds refundable.` });
+      return;
+    }
+
     // ── policy at the till: Momo's own terms, applied to the decrypted payment ──
     const customerLedgers = (inbound as any[]).filter((e) => e.from === ev.from).map((e) => e.ledger as number);
     const verdict = decide({ from: ev.from, paidXlm, ledger: ev.ledger, customerLedgers });
@@ -43,6 +72,6 @@ export default async function handler(req: any, res: any) {
     };
     const signed = signGoods(brief);
     await appendLedger({ at: new Date().toISOString(), tx, ledger: ev.ledger, from: ev.from, name, xlm: paidXlm });
-    res.status(200).json({ paid: true, delivered: true, decryptedXlm: paidXlm, policy: verdict, brief, ...signed });
+    res.status(200).json({ paid: true, delivered: true, decryptedXlm: paidXlm, policy: verdict, binding: { ok: true, invoiceId: bound.invoiceId }, brief, ...signed });
   } catch (e: any) { res.status(500).json({ error: String(e?.message ?? e) }); }
 }

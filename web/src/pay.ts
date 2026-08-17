@@ -221,8 +221,12 @@ async function run() {
     const quoted = BigInt(Math.round(q1.priceXlm * 1e7));
     const xl = (v: bigint) => (Number(v) / 1e7).toString();
     await wait(500);
+    let invoiceDoc: any = null;
     if (quoted <= budget && style === "take") {
       agreed = quoted; bubble("pip", `${xl(quoted)} works. Paying now.`);
+      const qa = await fetch("/api/momo/quote", { method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ buyer: pip.address, accept: true }) }).then((r) => r.json());
+      invoiceDoc = qa.invoice ?? null;
     } else {
       // counter: haggle opens at ~60% of the quote (capped at budget); stingy opens at 40%
       const openFrac = style === "stingy" ? 0.4 : 0.6;
@@ -234,12 +238,17 @@ async function run() {
         const q2 = await fetch("/api/momo/quote", { method: "POST", headers: { "content-type": "application/json" },
           body: JSON.stringify({ buyer: pip.address, offer: Number(offer) / 1e7 }) }).then((r) => r.json());
         t();
-        if (q2.accepted) { agreed = offer; bubble("momo", `${q2.note}. ${xl(offer)} it is.`); break; }
+        if (q2.accepted) { agreed = offer; invoiceDoc = q2.invoice ?? null; bubble("momo", `${q2.note}. ${xl(offer)} it is.`); break; }
         bubble("momo", `${q2.note}.`);
         // raise toward the quote, never past the budget
         const next = offer + (quoted - offer) / 2n;
         if (next > budget || next <= offer) {
-          if (quoted <= budget) { agreed = quoted; bubble("pip", `Fine, ${xl(quoted)}. Paying.`); }
+          if (quoted <= budget) {
+            agreed = quoted; bubble("pip", `Fine, ${xl(quoted)}. Paying.`);
+            const qa = await fetch("/api/momo/quote", { method: "POST", headers: { "content-type": "application/json" },
+              body: JSON.stringify({ buyer: pip.address, accept: true }) }).then((r) => r.json());
+            invoiceDoc = qa.invoice ?? null;
+          }
           else { bubble("pip", `That's over my budget. Walking away.`); }
           break;
         }
@@ -253,6 +262,7 @@ async function run() {
     }
     const price = agreed;
     const priceXlm = xl(price);
+    if (invoiceDoc?.invoiceId) sys(`Momo issued invoice ${String(invoiceDoc.invoiceId).slice(0, 12)}… for ${priceXlm} XLM to Pip (signed, expires in 10 min). Pip will bind the payment to it by attesting {invoiceId, tx} with its own key.`);
     if (terms && Number(priceXlm) < terms.terms.minTicketXlm) {
       sys(`Pip: agreed price ${priceXlm} XLM is under Momo's minimum ticket ${terms.terms.minTicketXlm} XLM per its own terms; paying would be refused at the till. Walking.`);
       status("no deal (terms)"); return;
@@ -306,7 +316,11 @@ async function run() {
     status("Momo verifying by decryption…");
     let served: any = null;
     for (let attempt = 0; attempt < 6 && !served?.delivered; attempt++) {
-      const resp = await fetch(`/api/momo/pay?tx=${pay.hash}&agreed=${priceXlm}&name=Pip`);
+      // Pip attests {invoiceId, tx} with the same key that paid: binds this payer + this payment + this invoice
+      const attest = invoiceDoc ? pipKp.sign((await import("@stellar/stellar-sdk")).hash(Buffer.from(JSON.stringify({ invoiceId: invoiceDoc.invoiceId, tx: pay.hash })))).toString("base64") : null;
+      if (!invoiceDoc) throw new Error("no invoice was issued for this deal; refusing to pay unbound");
+      const invParam = `&invoice=${encodeURIComponent(btoa(JSON.stringify({ invoice: invoiceDoc.invoice, signature: invoiceDoc.signature, attest })))}`;
+      const resp = await fetch(`/api/momo/pay?tx=${pay.hash}&agreed=${priceXlm}&name=Pip${invParam}`);
       served = await resp.json().catch(() => null);
       if (served?.delivered) break;
       if (served?.paid && served?.decryptedXlm != null && !served?.delivered) break; // mismatch, no retry
@@ -319,6 +333,7 @@ async function run() {
       throw new Error(served.error || "Momo refused delivery");
     }
     if (served.policy?.allow) sys(`policy at the till passed (terms v${served.policy.terms}): min ticket, velocity, blocklist all clear`);
+    if (served.binding?.ok) sys(`invoice binding verified: Pip attested {invoice ${String(served.binding.invoiceId).slice(0, 12)}…, tx} with its own key, invoice issued to Pip for exactly this amount, redeemed once. Replaying this tx against another request will fail.`, "good");
     const momoAfter = BigInt(Math.round((served.decryptedXlm ?? 0) * 1e7));
     bubble("momo", `Confirmed. I decrypted exactly ${served.decryptedXlm} XLM from your transfer. Matches what we agreed. Shipping.`);
     const sigOk = momoKp.verify(

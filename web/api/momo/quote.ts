@@ -5,6 +5,7 @@
  * without revealing the floor. Every quote is signed by Momo and expires.
  */
 import { momoBooks, policyQuote, considerOffer, signGoods, STROOP, MOMO } from "../../lib/momo.js";
+import { issueInvoice } from "../../lib/invoice.js";
 
 export default async function handler(req: any, res: any) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -22,7 +23,14 @@ export default async function handler(req: any, res: any) {
     if (offer != null) {
       const verdict = considerOffer(offer, p.floor);
       const q = { buyer, priceXlm: verdict.accept ? Number(offer) / 1e7 : Number(p.quote) / 1e7, accepted: verdict.accept, note: verdict.note, expiresAt, seller: MOMO };
-      res.status(200).json({ ...q, ...signGoods(q) });
+      const inv = verdict.accept && buyer ? issueInvoice(buyer, Number(offer) / 1e7) : null;
+      res.status(200).json({ ...q, ...signGoods(q), invoice: inv });
+      return;
+    }
+    if (body.accept === true && buyer) {
+      // buyer takes the list quote as-is: issue the invoice at the quote price
+      const inv = issueInvoice(buyer, Number(p.quote) / 1e7);
+      res.status(200).json({ buyer, priceXlm: Number(p.quote) / 1e7, accepted: true, note: "deal", expiresAt, seller: MOMO, invoice: inv });
       return;
     }
     const q = { buyer, priceXlm: Number(p.quote) / 1e7, rationale: p.rationale, product: "settlement-currency brief", expiresAt, seller: MOMO,

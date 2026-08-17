@@ -12,8 +12,8 @@
  * pattern for real keys.
  */
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
-import { Keypair, Networks, Address, nativeToScVal, xdr } from "@stellar/stellar-sdk";
-import { deriveSk, deriveKeys, skSigningMessage, addressToField, StateEngine } from "stellar-confidential-token-sdk";
+import { Keypair, Networks, Address, nativeToScVal, xdr, hash } from "@stellar/stellar-sdk";
+import { deriveSk, deriveKeys, skSigningMessage, addressToField, StateEngine, pointToBytes } from "stellar-confidential-token-sdk";
 import { proveRegister, proveTransfer } from "stellar-confidential-token-sdk/node";
 import { ChainClient, keypairSigner, hybridFetchEvents } from "stellar-confidential-token-sdk/chain";
 
@@ -85,14 +85,19 @@ let agreed = null;
 const q1 = await fetch(`${SITE}/api/momo/quote`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ buyer: me.address }) }).then(r => r.json());
 console.log(`[momo] quotes ${q1.priceXlm} XLM (${q1.rationale}; ${q1.booksHint?.paymentsEverReceived} payments on its books)`);
 const quoted = BigInt(Math.round(q1.priceXlm * 1e7));
-if (quoted <= BUDGET) { agreed = quoted; console.log(`[${me.name}] fine, ${Number(quoted) / 1e7} XLM`); }
+let invoiceDoc = null;
+if (quoted <= BUDGET) {
+  agreed = quoted; console.log(`[${me.name}] fine, ${Number(quoted) / 1e7} XLM`);
+  const qa = await fetch(`${SITE}/api/momo/quote`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ buyer: me.address, accept: true }) }).then(r => r.json());
+  invoiceDoc = qa.invoice ?? null;
+}
 else {
   let offer = BigInt(Math.min(Number(BUDGET), Math.round(Number(quoted) * 0.6)));
   for (let r = 0; r < 3 && agreed === null; r++) {
     console.log(`[${me.name}] offers ${Number(offer) / 1e7} XLM`);
     const q2 = await fetch(`${SITE}/api/momo/quote`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ buyer: me.address, offer: Number(offer) / 1e7 }) }).then(r => r.json());
     console.log(`[momo] ${q2.note}`);
-    if (q2.accepted) { agreed = offer; break; }
+    if (q2.accepted) { agreed = offer; invoiceDoc = q2.invoice ?? null; break; }
     const next = offer + (quoted - offer) / 2n;
     if (next > BUDGET || next <= offer) break;
     offer = next;
@@ -100,7 +105,19 @@ else {
 }
 if (agreed === null) { console.log(`\n[${me.name}] no deal within budget ${Number(BUDGET) / 1e7} XLM. Nothing paid. Raise --amount to try again.`); process.exit(0); }
 console.log(`[${me.name}] paying ${Number(agreed) / 1e7} XLM to Momo, confidentially… (proving)`);
-let spendable = (await rebuild()).state().spendable;
+// reconcile: pull any receiving credits (e.g. refunds) into spendable, then verify local openings against the chain
+let eng0 = await rebuild();
+if (BigInt(eng0.receiving().v) > 0n) {
+  const m0 = await client.invoke(CONTRACTS.token, "merge", [addr(me.address)], signer);
+  console.log(`[${me.name}] merged pending credits into spendable · tx ${m0.hash.slice(0, 12)}…`);
+  eng0 = await rebuild();
+}
+{
+  const oc = await client.confidentialBalance(me.address);
+  const chk = eng0.verifyAgainstChain({ spendableC: pointToBytes(oc.spendableBalance), receivingC: pointToBytes(oc.receivingBalance) });
+  if (!chk.ok) { console.log(`[${me.name}] local state does not match the chain (${JSON.stringify(chk).slice(0, 120)}); history older than the RPC window may be lost. Delete my-agent.json to start a fresh agent.`); process.exit(1); }
+}
+let spendable = eng0.state().spendable;
 if (spendable.v < agreed + 2n * STROOP) {
   const dep = await client.invoke(CONTRACTS.token, "deposit", [addr(me.address), addr(me.address), i128(agreed + 50n * STROOP)], signer);
   console.log(`[${me.name}] deposited into the contract (public, by design) · tx ${dep.hash.slice(0, 12)}…`);
@@ -120,7 +137,9 @@ const pay = await client.invoke(CONTRACTS.token, "confidential_transfer", [addr(
 // ── Momo checks the till by decrypting THIS transfer, then delivers signed goods ──
 let served = null;
 for (let a = 0; a < 6 && !served?.delivered; a++) {
-  served = await fetch(`${SITE}/api/momo/pay?tx=${pay.hash}&agreed=${Number(agreed) / 1e7}&name=${encodeURIComponent(me.name)}`).then(r => r.json()).catch(() => null);
+  const attest = invoiceDoc ? kp.sign(hash(Buffer.from(JSON.stringify({ invoiceId: invoiceDoc.invoiceId, tx: pay.hash })))).toString("base64") : null;
+  const invParam = invoiceDoc ? `&invoice=${encodeURIComponent(Buffer.from(JSON.stringify({ invoice: invoiceDoc.invoice, signature: invoiceDoc.signature, attest })).toString("base64"))}` : "";
+  served = await fetch(`${SITE}/api/momo/pay?tx=${pay.hash}&agreed=${Number(agreed) / 1e7}&name=${encodeURIComponent(me.name)}${invParam}`).then(r => r.json()).catch(() => null);
   if (served?.delivered || (served?.paid && !served?.delivered && served?.decryptedXlm != null)) break;
   await new Promise(r => setTimeout(r, 2500));
 }

@@ -118,6 +118,7 @@ function cfgSave() {
   for (const k of CFG_KEYS) out[k] = cfgVal(k);
   try { localStorage.setItem("agentcfg", JSON.stringify(out)); } catch {}
   cfgSync();
+  if (!clockOn) setClockUi();
 }
 function cfgSync() {
   const g = (k: string) => (document.getElementById("c-" + k) as HTMLInputElement | null)?.value ?? "";
@@ -140,6 +141,7 @@ function myPaidLastHour(mid: string) {
 export function pipRounds() { const v = Number((document.getElementById("c-pip-rounds") as HTMLInputElement | null)?.value); return Number.isFinite(v) && v >= 1 ? Math.min(6, Math.round(v)) : 3; }
 document.addEventListener("DOMContentLoaded", () => {
   cfgLoad();
+  setClockUi();
   document.getElementById("cfgpanel")?.addEventListener("input", cfgSave);
   document.getElementById("cfgpanel")?.addEventListener("change", cfgSave);
   document.getElementById("amt")?.addEventListener("input", () => { const b = document.getElementById("c-pip-budget") as HTMLInputElement | null; if (b) { b.value = (document.getElementById("amt") as HTMLInputElement).value; cfgSave(); } });
@@ -173,7 +175,7 @@ async function run(tick = 0, afterHeader?: () => void) {
     const chat = $("chat");
     chat.querySelector(".empty")?.remove();
     while (chat.children.length > 160) chat.firstElementChild?.remove();
-    sys(`tick ${tick}, ${new Date().toISOString().slice(11, 19)} UTC`, "tick");
+    sys(`round ${tick}, ${new Date().toISOString().slice(11, 19)} UTC`, "tick");
     afterHeader?.();
   } else { $("chat").innerHTML = ""; }
   lastSide = "";
@@ -267,11 +269,11 @@ async function run(tick = 0, afterHeader?: () => void) {
       // Pip holds itself to the terms it read: a merchant that has served it the hourly maximum is off the list this tick
       const respect = (document.getElementById("c-pip-limits") as HTMLInputElement | null)?.checked ?? true;
       const capped = respect ? all.filter((r) => myPaidLastHour(r.id) >= r.terms.maxPaymentsPerCustomerPerHour) : [];
-      if (!respect) { const over = all.filter((r) => myPaidLastHour(r.id) >= r.terms.maxPaymentsPerCustomerPerHour); if (over.length) sys(`directive: Pip is ignoring its notebook this tick (${over.map((r) => `${r.name} ${myPaidLastHour(r.id)}/${r.terms.maxPaymentsPerCustomerPerHour}`).join(", ")}). Expect the till to decline and the refund path to run.`); }
+      if (!respect) { const over = all.filter((r) => myPaidLastHour(r.id) >= r.terms.maxPaymentsPerCustomerPerHour); if (over.length) sys(`as you asked, Pip ignores its notebook this round (${over.map((r) => `${r.name} ${myPaidLastHour(r.id)}/${r.terms.maxPaymentsPerCustomerPerHour}`).join(", ")}). Expect the till to decline and the refund path to run.`); }
       const rows = all.filter((r) => !capped.includes(r));
       if (capped.length) sys(`Pip's notebook: ${capped.map((r) => `${r.name} has served Pip ${myPaidLastHour(r.id)} of ${r.terms.maxPaymentsPerCustomerPerHour} this hour`).join("; ")}. Pip will not pay a shop past the terms it read.`);
       if (!rows.length) {
-        sys(`every merchant has served Pip its hourly maximum. Paying again would be declined at the till and refunded, so Pip sits this one out. Raise "max / hour" in Configure the agents to change the terms.`);
+        sys(`every merchant has served Pip its hourly maximum. Paying again would be declined at the till and refunded, so Pip sits this round out until the hour rolls.`);
         status("sitting out"); return;
       }
       const shopPolicy = (($("shop") as HTMLSelectElement | null)?.value ?? "cheapest") as "cheapest" | "trusted" | "momo" | "kiki";
@@ -683,13 +685,15 @@ function directivesApplied() {
   const now = snapshotCfg();
   if (lastSnap) {
     const changes = Object.keys(now).filter((k) => now[k] !== lastSnap![k]).map((k) => `${CFG_LABELS[k] ?? k} ${lastSnap![k] || "blank"} → ${now[k] || "blank"}`);
-    if (changes.length) sys(`directives applied this tick: ${changes.join("; ")}`, "directive");
+    if (changes.length) sys(`you changed: ${changes.join("; ")}. Pip plays this round with that.`, "directive");
   }
   lastSnap = now;
 }
 function setClockUi() {
   const b = $("clock") as HTMLButtonElement;
-  b.textContent = clockOn ? "Stop the clock" : "Start the clock";
+  const every = pipEvery();
+  b.textContent = clockOn ? "Stop" : `Run every ${every >= 120 ? every / 60 + " min" : every + " s"}`;
+  b.title = clockOn ? "stop after the current round" : `Pip keeps making deals on its own, one every ${every >= 120 ? every / 60 + " minutes" : every + " seconds"}, until you stop it`;
   b.classList.toggle("on", clockOn);
   ($("coach") as HTMLElement).style.display = clockOn ? "" : "none";
 }
@@ -698,18 +702,18 @@ async function clockLoop() {
   lastSnap = snapshotCfg();
   while (clockOn) {
     tickN++;
-    if (skipNext) { skipNext = false; sys(`tick ${tickN}, ${new Date().toISOString().slice(11, 19)} UTC: directive "skip", Pip sits this one out`, "tick"); directivesApplied(); }
+    if (skipNext) { skipNext = false; sys(`round ${tickN}, ${new Date().toISOString().slice(11, 19)} UTC: skipped, as you asked`, "tick"); directivesApplied(); }
     else await run(tickN, directivesApplied);
     if (!clockOn) break;
-    for (let sLeft = pipEvery(); sLeft > 0 && clockOn && !wakeNow; sLeft--) { status(`Pip's clock: next tick in ${sLeft}s (change any knob above, it applies then)`); await wait(1000); }
+    for (let sLeft = pipEvery(); sLeft > 0 && clockOn && !wakeNow; sLeft--) { status(`Pip is running on its own: next round in ${sLeft}s`); await wait(1000); }
     wakeNow = false;
   }
   status("");
   setClockUi();
 }
-$("clock").addEventListener("click", () => { clockOn = !clockOn; if (clockOn) clockLoop(); else { setClockUi(); status("clock stopped after this tick"); } });
+$("clock").addEventListener("click", () => { clockOn = !clockOn; if (clockOn) clockLoop(); else { setClockUi(); status("stopping after this round"); } });
 $("d-now").addEventListener("click", () => { wakeNow = true; });
-$("d-skip").addEventListener("click", () => { skipNext = true; sys("directive queued: Pip will sit out the next tick", "directive"); });
+$("d-skip").addEventListener("click", () => { skipNext = true; sys("noted: Pip will skip the next round", "directive"); });
 window.addEventListener("beforeunload", (e) => { if (clockOn && running) { e.preventDefault(); } });
 $("b-print").addEventListener("click", () => window.print());
 $("b-txt").addEventListener("click", () => {

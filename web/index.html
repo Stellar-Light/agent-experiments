@@ -39,6 +39,7 @@
   button.clock{font-family:var(--sans);font-size:14.5px;font-weight:600;padding:11px 18px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;white-space:nowrap}
   button.clock.on{border-color:var(--ink)}
   button.clock.on::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ok);margin-right:8px;vertical-align:1px;animation:blink 1.6s infinite}
+  .hint{font-size:12.5px;color:var(--sub);margin:6px 0 0;max-width:60ch;line-height:1.55}
   .coach{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--sub);margin:4px 0 0}
   .coach button{font-family:var(--sans);font-size:12px;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
   .sys .s.tick{background:var(--ink);color:var(--bg);font-weight:600;letter-spacing:.03em}
@@ -156,7 +157,7 @@
 <div class="wrap">
   <header>
     <h1>Confidential Agent Commerce</h1>
-    <p class="sub">Two merchant agents, Momo and Kiki, run as live services with their own prices and signed terms. Pip is a buyer agent with a budget you set: it shops the market, negotiates for real (neither side sees the other's number) or pays a Machine Payments Protocol challenge, and the price settles encrypted on Stellar testnet. The merchant confirms payment by decrypting it, a registered auditor can always read it, everyone else sees nothing. Start the clock and Pip trades on its own schedule while you coach it.</p>
+    <p class="sub">Two merchant agents, Momo and Kiki, run as live services with their own prices and signed terms. Pip is a buyer agent with a budget you set: it shops the market, negotiates for real (neither side sees the other's number) or pays a Machine Payments Protocol challenge, and the price settles encrypted on Stellar testnet. The merchant confirms payment by decrypting it, a registered auditor can always read it, everyone else sees nothing. Let it run and Pip keeps trading on its own while you change the rules under it.</p>
     <p class="sub" style="font-size:12px;margin-top:8px">Demo keys are published on purpose (testnet, worthless): anyone can decrypt this demo's own amounts. The protocol hides amounts from anyone without keys.</p>
     <div class="runbar">
       <div class="selwrap"><select id="denom" aria-label="currency"><option value="xlm">XLM</option><option value="usd">USD, oracle to XLM</option></select></div>
@@ -165,10 +166,11 @@
       <select id="style" hidden><option value="haggle"></option><option value="take"></option><option value="stingy"></option></select>
       <input id="amt" inputmode="decimal" placeholder="Pip's budget (blank = random)" autocomplete="off" aria-label="payment amount">
       <button class="run" id="run">Run payment</button>
-      <button class="clock" id="clock" type="button">Start the clock</button>
+      <button class="clock" id="clock" type="button" title="Pip keeps making deals on its own, one every minute, until you stop it">Run every 60 s</button>
       <span class="status" id="status" aria-live="polite"></span>
     </div>
-    <div class="coach" id="coach" style="display:none">coach Pip: <button id="d-now" type="button">buy now</button> <button id="d-skip" type="button">skip next tick</button> <span>any knob in Configure the agents applies at the next tick; Pip logs what changed</span></div>
+    <div class="hint"><b>Run payment</b> makes one deal now. <b>Run every 60 s</b> lets Pip keep trading on its own, one round per minute, until you press Stop; while it runs, anything you change in Configure the agents applies at the next round, and Pip says what changed.</div>
+    <div class="coach" id="coach" style="display:none">while Pip runs: <button id="d-now" type="button">next round now</button> <button id="d-skip" type="button">skip the next round</button></div>
   </header>
 
   <div class="idstrip" id="idstrip"></div>
@@ -184,7 +186,7 @@
         <label>shopping <select id="c-pip-shop"><option value="cheapest">cheapest quote</option><option value="trusted">most track record</option><option value="momo">only Momo</option><option value="kiki">only Kiki</option></select></label>
         <label>rounds <input id="c-pip-rounds" inputmode="numeric" value="3"></label>
         <label>protocol <select id="c-pip-proto"><option value="negotiate">negotiate (quote, invoice)</option><option value="mpp">MPP (pay the 402 challenge)</option></select></label>
-        <label>tick every <select id="c-pip-every"><option value="45">45 s</option><option value="60" selected>60 s</option><option value="90">90 s</option><option value="120">2 min</option><option value="300">5 min</option></select></label>
+        <label>a round every <select id="c-pip-every"><option value="45">45 s</option><option value="60" selected>60 s</option><option value="90">90 s</option><option value="120">2 min</option><option value="300">5 min</option></select></label>
         <label>respects hourly limits <input id="c-pip-limits" type="checkbox" checked style="width:auto;accent-color:var(--ink)"></label>
       </div>
       <div class="cfgcol">
@@ -204,10 +206,10 @@
         <div class="cfgterms">terms, signed and fixed: min ticket 1 XLM, max 3 payments per customer per hour</div>
       </div>
     </div>
-    <div class="cfgnote">Merchant identities (keys, on-chain registration) and terms are fixed. Pricing is yours to set: the negotiation, the till, and the market board all run with what you configure here, and while the clock runs every change is a directive Pip reads at its next tick. Terms are not knobs on purpose: a verdict at the till has to be re-derivable from the chain alone, or the refund worker could refund delivered goods or strand funds. Saved in this browser. <button id="c-reset" type="button">reset defaults</button></div>
+    <div class="cfgnote">Merchant identities (keys, on-chain registration) and terms are fixed. Pricing is yours to set: the negotiation, the till, and the market board all run with what you configure here, and while Pip is running on its own, every change applies at its next round. Terms are not knobs on purpose: a verdict at the till has to be re-derivable from the chain alone, or the refund worker could refund delivered goods or strand funds. Saved in this browser. <button id="c-reset" type="button">reset defaults</button></div>
   </details>
 
-  <div class="chat" id="chat" role="log" aria-live="polite"><div class="empty">Press run for one payment, or start the clock and Pip trades on its own schedule. This is not a simulation: each tick is a new payment negotiated (or challenged over MPP), proven, and settled on testnet while you watch. About 20 seconds each. Price it in XLM or in dollars (converted live from the reflector oracle).</div></div>
+  <div class="chat" id="chat" role="log" aria-live="polite"><div class="empty">Press Run payment for one deal, or Run every 60 s and Pip keeps dealing on its own. This is not a simulation: each round is a new payment negotiated (or challenged over MPP), proven, and settled on testnet while you watch. About 20 seconds each. Price it in XLM or in dollars (converted live from the reflector oracle).</div></div>
 
   <div class="slipwrap"><div class="printcol"><div class="slot" id="slot" style="display:none"></div><div class="feed" id="feedmask"><div class="slip" id="slip"></div></div></div></div>
   <div class="exports" id="exports">
@@ -226,7 +228,7 @@
 
   <div class="panel" id="marketboard">
     <h2>The market board, live</h2>
-    <div style="font-size:12px;color:var(--sub);margin-bottom:6px">What Pip reads at every tick: each merchant's quote from its own decrypted books, its signed terms, and Pip's notebook against them. Prices move as payments land; a shop that has served Pip its hourly maximum drops off Pip's list until the hour rolls.</div>
+    <div style="font-size:12px;color:var(--sub);margin-bottom:6px">What Pip reads before every deal: each merchant's quote from its own decrypted books, its signed terms, and Pip's notebook against them. Prices move as payments land; a shop that has served Pip its hourly maximum drops off Pip's list until the hour rolls.</div>
     <ul class="board" id="board"><li style="color:var(--sub)">loading…</li></ul>
   </div>
 

@@ -32,16 +32,29 @@ function keys() {
 
 export type Transfer = { id: string; ledger: number; from: string; to: string; tx?: string };
 
-/** Momo's own bookkeeping: replay public events, decrypt what it received. */
+import { loadCheckpoint } from "./checkpoint.js";
+
+/**
+ * Momo's own bookkeeping: resume from the latest checkpoint if one exists,
+ * then replay only the public events since it, and decrypt what it received.
+ * Falls back to genesis replay when no checkpoint is available.
+ */
 export async function momoBooks() {
-  const { events } = await hybridFetchEvents(client, undefined, { fromLedger: SESSION.fromLedger });
+  const cp = await loadCheckpoint(MOMO);
+  const from = cp ? Math.max(SESSION.fromLedger, cp.savedAtLedger - 50) : SESSION.fromLedger;
+  const { events } = await hybridFetchEvents(client, undefined, { fromLedger: from });
   const mine = events.filter((ev: any) =>
     ev.type === "register" || ev.type === "merge" ? ev.account === MOMO : ev.from === MOMO || ev.to === MOMO);
-  const eng = new StateEngine({ address: MOMO, keys: keys() });
-  eng.ingestEvents(mine);
+  const eng = new StateEngine({ address: MOMO, keys: keys(), store: cp ? { load: async () => cp.state, save: async () => {} } : undefined });
+  if (cp) await eng.load();
+  // only ingest events strictly after the checkpoint (avoid double-counting the overlap window)
+  const fresh = cp ? mine.filter((e: any) => e.ledger > cp.state.lastLedger) : mine;
+  eng.ingestEvents(fresh);
   const receivedTotal = BigInt(eng.receiving().v);
-  const inbound = mine.filter((e: any) => e.type === "transfer" && e.to === MOMO) as any[];
-  return { receivedTotal, inbound, engine: eng, events: mine };
+  // inbound list = checkpoint's remembered inbound + fresh inbound (for the ledger/feed)
+  const inboundFresh = fresh.filter((e: any) => e.type === "transfer" && e.to === MOMO) as any[];
+  const inbound = [...(cp?.inbound ?? []), ...inboundFresh];
+  return { receivedTotal, inbound, engine: eng, events: mine, checkpoint: cp ? { savedAt: cp.savedAt, savedAtLedger: cp.savedAtLedger } : null, replayFrom: from };
 }
 
 /**

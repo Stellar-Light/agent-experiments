@@ -18,8 +18,7 @@ export default async function handler(req: any, res: any) {
     const { inbound, engine } = await momoBooks();
     const ev: any = inbound.find((e: any) => String(e.txHash).toLowerCase() === tx);
     if (!ev) { res.status(402).json({ paid: false, error: "no confidential transfer to Momo found in that transaction (yet); retry in a few seconds" }); return; }
-    const { vTx } = engine.decryptIncoming(ev.rE, ev.vTilde, ev.sigma);
-    const paidXlm = Number(vTx) / 1e7;
+    const paidXlm = typeof ev.amount === "number" ? ev.amount : Number(engine.decryptIncoming(ev.rE, ev.vTilde, ev.sigma).vTx) / 1e7;
     if (Number.isFinite(agreed) && Math.abs(paidXlm - agreed) > 1e-7) {
       res.status(402).json({ paid: true, delivered: false, decryptedXlm: paidXlm, error: `you paid ${paidXlm} XLM but we agreed ${agreed}` });
       return;

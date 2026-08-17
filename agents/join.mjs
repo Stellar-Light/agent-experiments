@@ -61,8 +61,17 @@ if (!(await client.isRegistered(me.address))) {
   console.log(`[${me.name}] registered on the confidential token · tx ${r.hash.slice(0, 12)}…`);
 } else console.log(`[${me.name}] already registered`);
 
-const fromLedger = (await fetch("https://soroban-testnet.stellar.org", { method: "POST", headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getLatestLedger" }) }).then(r => r.json())).result.sequence - 100000;
+// replay window: your agent's own history since it was born (persisted in my-agent.json), clamped to RPC retention
+const _rpc = await fetch("https://soroban-testnet.stellar.org", { method: "POST", headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getHealth" }) }).then(r => r.json());
+const oldestRetained = _rpc.result?.oldestLedger ?? 0;
+if (!me.bornLedger) {
+  const latestNow = (await fetch("https://soroban-testnet.stellar.org", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getLatestLedger" }) }).then(r => r.json())).result.sequence;
+  me.bornLedger = latestNow - 20; writeFileSync("./my-agent.json", JSON.stringify(me, null, 2));
+}
+const fromLedger = Math.max(me.bornLedger, oldestRetained);
+if (me.bornLedger < oldestRetained) console.log(`[${me.name}] note: history older than the RPC window (~7 days) is no longer replayable; balance from before then is not recoverable here`);
 const rebuild = async () => {
   const { events } = await hybridFetchEvents(client, undefined, { fromLedger: Math.max(0, fromLedger) });
   const eng = new StateEngine({ address: me.address, keys });

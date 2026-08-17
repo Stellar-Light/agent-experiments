@@ -15,7 +15,8 @@ export async function customerLedger() {
   const byAgent = new Map<string, { address: string; name?: string; payments: number; lastLedger: number; totalXlm: number }>();
   for (const ev of inbound as any[]) {
     let amt = 0;
-    try { amt = Number(engine.decryptIncoming(ev.rE, ev.vTilde, ev.sigma).vTx) / 1e7; } catch {}
+    if (typeof ev.amount === "number") amt = ev.amount;
+    else { try { amt = Number(engine.decryptIncoming(ev.rE, ev.vTilde, ev.sigma).vTx) / 1e7; } catch {} }
     const cur = byAgent.get(ev.from) ?? { address: ev.from, name: names.get(ev.from), payments: 0, lastLedger: 0, totalXlm: 0 };
     cur.payments++; cur.lastLedger = Math.max(cur.lastLedger, ev.ledger); cur.totalXlm += amt;
     byAgent.set(ev.from, cur);

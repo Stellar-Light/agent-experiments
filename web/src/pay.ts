@@ -150,10 +150,22 @@ async function run() {
 
     const mine = (address: string, events: any[]) => events.filter((ev) =>
       ev.type === "register" || ev.type === "merge" ? ev.account === address : ev.from === address || ev.to === address);
+    // replay from the latest checkpoint when one exists (defuses the RPC retention window), else from genesis
+    let CP: any = null;
+    try { CP = await fetch("/checkpoint.json", { cache: "no-store" }).then((r) => r.ok ? r.json() : null); } catch {}
+    const { reviveState } = core as any;
+    const cpFor = (address: string) => {
+      const entry: any = CP?.agents ? Object.values(CP.agents).find((a: any) => a?.address === address) : null;
+      return entry?.state ? { state: reviveState(entry.state), savedAtLedger: entry.savedAtLedger as number } : null;
+    };
     const rebuild = async (who: { address: string; keys: any }) => {
-      const { events } = await hybridFetchEvents(client, undefined, { fromLedger: SESSION.fromLedger });
-      const e = new StateEngine({ address: who.address, keys: who.keys });
-      e.ingestEvents(mine(who.address, events));
+      const cp = cpFor(who.address);
+      const from = cp ? Math.max(SESSION.fromLedger, cp.savedAtLedger - 50) : SESSION.fromLedger;
+      const { events } = await hybridFetchEvents(client, undefined, { fromLedger: from });
+      const e = new StateEngine({ address: who.address, keys: who.keys, store: cp ? { load: async () => cp.state, save: async () => {} } : undefined });
+      if (cp) await e.load();
+      const evs = mine(who.address, events).filter((ev: any) => !cp || ev.ledger > cp.state.lastLedger);
+      e.ingestEvents(evs);
       return e;
     };
 

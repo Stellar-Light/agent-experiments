@@ -12,6 +12,7 @@
  * demo client additionally proves the amount by decryption with the
  * seller key. Production would bind an invoice nonce into the transfer.
  */
+import { Buffer } from "node:buffer";
 import { xdr, StrKey, Keypair, hash } from "@stellar/stellar-sdk";
 import SESSION from "../src/session.json" with { type: "json" };
 

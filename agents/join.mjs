@@ -69,28 +69,57 @@ const rebuild = async () => {
   eng.ingestEvents(events.filter((ev) => ev.type === "register" || ev.type === "merge" ? ev.account === me.address : ev.from === me.address || ev.to === me.address));
   return eng;
 };
+// ── talk to Momo for real: ask for a quote, negotiate within budget ──
+const SITE = process.env.MOMO_SITE ?? "https://confidential-agent-commerce.vercel.app";
+const BUDGET = AMOUNT;
+let agreed = null;
+const q1 = await fetch(`${SITE}/api/momo/quote`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ buyer: me.address }) }).then(r => r.json());
+console.log(`[momo] quotes ${q1.priceXlm} XLM (${q1.rationale}; ${q1.booksHint?.paymentsEverReceived} payments on its books)`);
+const quoted = BigInt(Math.round(q1.priceXlm * 1e7));
+if (quoted <= BUDGET) { agreed = quoted; console.log(`[${me.name}] fine, ${Number(quoted) / 1e7} XLM`); }
+else {
+  let offer = BigInt(Math.min(Number(BUDGET), Math.round(Number(quoted) * 0.6)));
+  for (let r = 0; r < 3 && agreed === null; r++) {
+    console.log(`[${me.name}] offers ${Number(offer) / 1e7} XLM`);
+    const q2 = await fetch(`${SITE}/api/momo/quote`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ buyer: me.address, offer: Number(offer) / 1e7 }) }).then(r => r.json());
+    console.log(`[momo] ${q2.note}`);
+    if (q2.accepted) { agreed = offer; break; }
+    const next = offer + (quoted - offer) / 2n;
+    if (next > BUDGET || next <= offer) break;
+    offer = next;
+  }
+}
+if (agreed === null) { console.log(`\n[${me.name}] no deal within budget ${Number(BUDGET) / 1e7} XLM. Nothing paid. Raise --amount to try again.`); process.exit(0); }
+console.log(`[${me.name}] paying ${Number(agreed) / 1e7} XLM to Momo, confidentially… (proving)`);
 let spendable = (await rebuild()).state().spendable;
-if (spendable.v < AMOUNT + 2n * STROOP) {
-  const dep = await client.invoke(CONTRACTS.token, "deposit", [addr(me.address), addr(me.address), i128(AMOUNT + 50n * STROOP)], signer);
+if (spendable.v < agreed + 2n * STROOP) {
+  const dep = await client.invoke(CONTRACTS.token, "deposit", [addr(me.address), addr(me.address), i128(agreed + 50n * STROOP)], signer);
   console.log(`[${me.name}] deposited into the contract (public, by design) · tx ${dep.hash.slice(0, 12)}…`);
   const mrg = await client.invoke(CONTRACTS.token, "merge", [addr(me.address)], signer);
   console.log(`[${me.name}] merged · tx ${mrg.hash.slice(0, 12)}…`);
   spendable = (await rebuild()).state().spendable;
 }
 
-console.log(`[${me.name}] paying ${Number(AMOUNT) / 1e7} XLM to the merchant — confidentially… (proving)`);
 const kAud = await client.auditorKey(0);
 const t0 = Date.now();
-const transfer = await proveTransfer({ keys, v: spendable.v, r: spendable.r, amount: AMOUNT,
+const transfer = await proveTransfer({ keys, v: spendable.v, r: spendable.r, amount: agreed,
   pvkB: (await client.confidentialBalance(MERCHANT))?.viewingPublicKey ?? (() => { throw new Error("merchant not registered on the confidential contract"); })(),
   kAudR: kAud, kAudS: kAud });
 console.log(`[${me.name}] proof in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
 const pay = await client.invoke(CONTRACTS.token, "confidential_transfer", [addr(me.address), addr(MERCHANT), bytesVal(transfer.payload)], signer);
 
+// ── Momo checks the till by decrypting THIS transfer, then delivers signed goods ──
+let served = null;
+for (let a = 0; a < 6 && !served?.delivered; a++) {
+  served = await fetch(`${SITE}/api/momo/pay?tx=${pay.hash}&agreed=${Number(agreed) / 1e7}&name=${encodeURIComponent(me.name)}`).then(r => r.json()).catch(() => null);
+  if (served?.delivered || (served?.paid && !served?.delivered && served?.decryptedXlm != null)) break;
+  await new Promise(r => setTimeout(r, 2500));
+}
+console.log(served?.delivered ? `[momo] decrypted exactly ${served.decryptedXlm} XLM from your transfer, matches, delivered "${served.brief.title}" (signed ${String(served.signature).slice(0,10)}…)` : `[momo] ${served?.error ?? "no reply"}`);
 console.log(`
-✅ ${me.name} paid the merchant. The amount is not on-chain.
+✅ ${me.name} paid Momo. The amount is not on-chain.
    tx  https://stellar.expert/explorer/testnet/tx/${pay.hash}
-   Open https://confidential-agent-commerce.vercel.app — the merchant's
-   decrypted total on that page now includes your payment. Your agent:
+   Open https://confidential-agent-commerce.vercel.app: you are now a row in
+   Momo's customer ledger (from the chain, decrypted by Momo). Your agent:
    ${me.address}
 `);

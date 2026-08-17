@@ -16,6 +16,7 @@ import { Buffer } from "buffer";
 
 import SESSION from "./session.json";
 import { blobAvatar } from "./avatar";
+import { discloseToExaminer } from "./disclose";
 
 // the site redeploys often; if an old tab's lazy chunk 404s, reload once
 window.addEventListener("vite:preloadError", () => window.location.reload());
@@ -76,6 +77,19 @@ const DEFAULT_NAMES: Record<string, string> = { pip: "Pip", momo: "Momo" };
 function agentName(k: string): string {
   try { return localStorage.getItem("name:" + k) || DEFAULT_NAMES[k]; } catch { return DEFAULT_NAMES[k]; }
 }
+
+async function renderFeed() {
+  try {
+    const f = await fetch("/api/momo/feed").then((r) => r.json());
+    const ul = document.getElementById("feedlist"); if (!ul) return;
+    const rows = (f.customers ?? []).slice(0, 8).map((c: any) => {
+      const who = c.address === SESSION.pip.address ? "Pip (this page)" : (c.name ? c.name : "agent " + c.address.slice(0, 6) + "…");
+      return `<li><img src="${blobAvatar(c.address, 16)}" width="16" height="16" style="vertical-align:-3px;border-radius:50%;margin-right:6px">${who}: ${c.payments} payment${c.payments === 1 ? "" : "s"}, ${(+c.totalXlm).toFixed(2)} XLM decrypted, last ledger ${c.lastLedger} <a href="https://stellar.expert/explorer/testnet/account/${c.address}" target="_blank" rel="noreferrer">↗</a></li>`;
+    });
+    ul.innerHTML = rows.join("") + `<li style="color:var(--sub)">${f.paymentsTotal} payments, ${(+f.receivedXlm).toFixed(2)} XLM received in total</li>`;
+  } catch { const ul = document.getElementById("feedlist"); if (ul) ul.innerHTML = "<li style='color:var(--sub)'>feed unavailable</li>"; }
+}
+renderFeed();
 
 // USD mode: live XLM/USD from the reflector oracle (mainnet, read-only, keyless)
 async function xlmUsdRate(sdk: any): Promise<number> {
@@ -143,57 +157,89 @@ async function run() {
       return e;
     };
 
-    // the deal, user-set amount wins; blank = random
+    // ── Pip's policy: a budget it will not exceed, and a haggling style ──
     const parseXlm = (raw: string): bigint | null => {
       const t = raw.trim();
       if (!t) return null;
-      if (!/^\d+(\.\d{1,7})?$/.test(t)) throw new Error("amount must be a number with up to 7 decimals, e.g. 3.7");
+      if (!/^\d+(\.\d{1,7})?$/.test(t)) throw new Error("budget must be a number with up to 7 decimals, e.g. 3.7");
       const [i, f = ""] = t.split(".");
       const v = BigInt(i) * STROOP + BigInt((f + "0000000").slice(0, 7));
-      if (v <= 0n) throw new Error("amount must be positive");
+      if (v <= 0n) throw new Error("budget must be positive");
+      if (v > 200n * STROOP) throw new Error("keep the budget under 200 XLM, it's a shared testnet balance");
       return v;
     };
     const denom = ($("denom") as HTMLSelectElement).value;
     const typed = parseXlm(($("amt") as HTMLInputElement).value);
-    let price: bigint, priceNote = "";
+    let budget: bigint;
     if (denom === "usd" && typed) {
       status("reading oracle rate");
-      const sdkAll = await import("@stellar/stellar-sdk");
-      const rate = await xlmUsdRate(sdkAll);
+      const rate = await xlmUsdRate(await import("@stellar/stellar-sdk"));
       const usd = Number(typed) / 1e7;
-      price = BigInt(Math.round((usd / rate) * 1e7));
-      if (price > 200n * STROOP) throw new Error(`$${usd} is ${(Number(price) / 1e7).toFixed(2)} XLM at the current rate; keep it under 200 XLM, it's a shared testnet balance`);
-      priceNote = `$${usd} at ${rate.toFixed(4)} USD/XLM (live reflector oracle) = ${(Number(price) / 1e7).toFixed(7)} XLM`;
-      sys(`invoice denominated in dollars: ${priceNote}`);
+      budget = BigInt(Math.round((usd / rate) * 1e7));
+      if (budget > 200n * STROOP) throw new Error(`$${usd} is ${(Number(budget) / 1e7).toFixed(2)} XLM at the current rate; keep it under 200 XLM`);
+      sys(`Pip's budget: $${usd} = ${(Number(budget) / 1e7).toFixed(4)} XLM at ${rate.toFixed(4)} USD/XLM (live reflector oracle). Momo will not learn this number.`);
     } else {
-      if (typed && typed > 200n * STROOP) throw new Error("keep it under 200 XLM, it's a shared testnet balance");
-      price = typed ?? BigInt(1 + Math.floor(Math.random() * 9)) * STROOP;
-      if (typed) sys(`price set by you: ${(Number(price) / 1e7).toString()} XLM, watch the seller decrypt exactly that`);
+      budget = typed ?? BigInt(3 + Math.floor(Math.random() * 5)) * STROOP;
+      sys(`Pip's budget: ${(Number(budget) / 1e7)} XLM (private to Pip). Momo quotes from its own policy; neither knows the other's number.`);
     }
-    const priceXlm = (Number(price) / 1e7).toString();
+    const style = (($("style") as HTMLSelectElement | null)?.value ?? "haggle") as "haggle" | "take" | "stingy";
 
-    status("requesting the gated API");
-    try {
-      const gate = await fetch("/api/brief");
-      if (gate.status === 402) {
-        const g = await gate.json();
-        sys(`HTTP 402 Payment Required from /api/brief. payTo ${String(g.payTo).slice(0, 6)}…, settlement: confidential`);
-      }
-    } catch {}
-    bubble("pip", "The brief API wants payment. What's your price today?");
-    await wait(700);
-    let t = typing("momo", "checking books");
-    await wait(900); t();
-    bubble("momo", `${priceXlm} XLM. Pay it confidentially, the amount stays between us and the auditor.`);
+    // ── Momo is a real service. Pip asks it for a quote. ──
+    status("Pip requests a quote from Momo");
+    bubble("pip", "Need the settlement brief. What's your price today?");
+    let t = typing("momo", "checking my books");
+    const q1 = await fetch("/api/momo/quote", { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ buyer: pip.address }) }).then((r) => r.json());
+    t();
+    if (!q1?.priceXlm) throw new Error("Momo did not answer");
+    bubble("momo", `${q1.priceXlm} XLM. ${q1.rationale}. Pay confidentially; the amount stays between us and the auditor.`);
+    sys(`Momo's quote is signed by Momo (${String(q1.signature).slice(0, 10)}…) and reflects its books: ${q1.booksHint?.paymentsEverReceived} payments ever, ${q1.booksHint?.lastHour} in the last hour`);
+
+    // ── Pip decides: accept, counter, or walk ──
+    let agreed: bigint | null = null;
+    const quoted = BigInt(Math.round(q1.priceXlm * 1e7));
+    const xl = (v: bigint) => (Number(v) / 1e7).toString();
     await wait(500);
+    if (quoted <= budget && style === "take") {
+      agreed = quoted; bubble("pip", `${xl(quoted)} works. Paying now.`);
+    } else {
+      // counter: haggle opens at ~60% of the quote (capped at budget); stingy opens at 40%
+      const openFrac = style === "stingy" ? 0.4 : 0.6;
+      let offer = BigInt(Math.round(Number(quoted) * openFrac));
+      if (offer > budget) offer = budget;
+      for (let round = 0; round < 3 && agreed === null; round++) {
+        bubble("pip", round === 0 ? `Steep. I can do ${xl(offer)}.` : `Meet me at ${xl(offer)}?`);
+        t = typing("momo", "considering the offer");
+        const q2 = await fetch("/api/momo/quote", { method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ buyer: pip.address, offer: Number(offer) / 1e7 }) }).then((r) => r.json());
+        t();
+        if (q2.accepted) { agreed = offer; bubble("momo", `${q2.note}. ${xl(offer)} it is.`); break; }
+        bubble("momo", `${q2.note}.`);
+        // raise toward the quote, never past the budget
+        const next = offer + (quoted - offer) / 2n;
+        if (next > budget || next <= offer) {
+          if (quoted <= budget) { agreed = quoted; bubble("pip", `Fine, ${xl(quoted)}. Paying.`); }
+          else { bubble("pip", `That's over my budget. Walking away.`); }
+          break;
+        }
+        offer = next;
+      }
+    }
+    if (agreed === null) {
+      sys("no deal: Momo's floor is above Pip's budget. Nothing was paid, nothing hit the chain. Raise the budget or change Pip's style.");
+      status("no deal");
+      return;
+    }
+    const price = agreed;
+    const priceXlm = xl(price);
 
-    // funds check + top-up if needed (real transactions, no proof required)
+    // ── funds check + top-up if needed (real transactions, no proof required) ──
     status("checking balance…");
     let pipEngine = await rebuild(pip);
     let spendable = pipEngine.state().spendable;
     if (spendable.v < price + 2n * STROOP) {
       const topup = price + 100n * STROOP;
-      sys(`buyer balance low, depositing ${(Number(topup) / 1e7).toString()} XLM into the contract (deposits are public by design)`);
+      sys(`buyer balance low, depositing ${xl(topup)} XLM into the contract (deposits are public by design)`);
       const dep = await client.invoke(SESSION.contracts.token, "deposit",
         [addr(pip.address), addr(pip.address), i128(topup)], pipSigner);
       sys(`deposit tx ${dep.hash.slice(0, 10)}…`);
@@ -203,10 +249,7 @@ async function run() {
       spendable = pipEngine.state().spendable;
     }
 
-    // momo's receiving total BEFORE, so the decrypted delta is provable
-    const momoBefore = BigInt((await rebuild(momo)).receiving().v);
-
-    bubble("pip", "Paying now.");
+    // ── Pip pays: proof in this tab, settle on testnet ──
     t = typing("pip", "generating zero-knowledge proof in this tab…");
     status("proving…");
     const kAud = await client.auditorKey(SESSION.auditorId);
@@ -220,6 +263,7 @@ async function run() {
     await prover.destroy();
     const proveSecs = ((performance.now() - t0) / 1000).toFixed(1);
     const payload = new Uint8Array(encodeTransferData(witness, proof).bytes());
+    const rEScalarForDisclosure: bigint = witness.rEScalar;
     t();
     sys(`proof generated in this browser in ${proveSecs}s`, "good");
 
@@ -229,32 +273,30 @@ async function run() {
       [addr(pip.address), addr(momo.address), bytesVal(payload)], pipSigner);
     t();
     sys(`confidential transfer settled <a href="https://stellar.expert/explorer/testnet/tx/${pay.hash}" target="_blank" rel="noreferrer">${pay.hash.slice(0, 16)}…</a> (the amount is not in that transaction)`, "good");
-    bubble("pip", "Sent. Check your side.");
+    bubble("pip", `Sent. ${xl(price)} as agreed. Check your side.`);
 
+    // ── Momo checks the till: decrypts THIS payment with its own key, server-side ──
     await wait(400);
-    t = typing("momo", "replaying chain events · decrypting receiving balance…");
-    status("seller decrypting…");
-    const momoAfter = BigInt((await rebuild(momo)).receiving().v);
-    const delta = momoAfter - momoBefore;
-    t();
-    if (delta !== price) throw new Error(`seller decrypted ${delta} stroops, expected ${price}`);
-    bubble("momo", `Confirmed. Decrypted exactly +${priceXlm} XLM. Only we and the auditor can read that number here.`);
-    t = typing("momo", "releasing the brief through the 402 gate");
+    t = typing("momo", "checking the till, decrypting your transfer with my key");
+    status("Momo verifying by decryption…");
     let served: any = null;
-    try {
-      const resp = await fetch(`/api/brief?tx=${pay.hash}`);
-      if (resp.ok) served = await resp.json();
-    } catch {}
-    t();
-    if (served?.paid) {
-      const sigOk = momoKp.verify(
-        (await import("@stellar/stellar-sdk")).hash(Buffer.from(JSON.stringify(served.brief))),
-        Buffer.from(served.signature, "base64"));
-      sys(`the API verified the payment from the envelope alone and served the brief, sha256 ${String(served.sha256).slice(0, 12)}…, signature ${sigOk ? "verified" : "FAILED"}`, sigOk ? "good" : "");
-      bubble("momo", `Delivered via the API: "${served.brief.title}".`);
-    } else {
-      bubble("momo", "Delivered.");
+    for (let attempt = 0; attempt < 6 && !served?.delivered; attempt++) {
+      const resp = await fetch(`/api/momo/pay?tx=${pay.hash}&agreed=${priceXlm}&name=Pip`);
+      served = await resp.json().catch(() => null);
+      if (served?.delivered) break;
+      if (served?.paid && served?.decryptedXlm != null && !served?.delivered) break; // mismatch, no retry
+      await wait(2500);
     }
+    t();
+    if (!served?.paid) throw new Error(served?.error || "Momo could not find the payment");
+    if (!served.delivered) throw new Error(served.error || "Momo refused delivery");
+    const momoAfter = BigInt(Math.round((served.decryptedXlm ?? 0) * 1e7));
+    bubble("momo", `Confirmed. I decrypted exactly ${served.decryptedXlm} XLM from your transfer. Matches what we agreed. Shipping.`);
+    const sigOk = momoKp.verify(
+      (await import("@stellar/stellar-sdk")).hash(Buffer.from(JSON.stringify(served.brief))),
+      Buffer.from(served.signature, "base64"));
+    sys(`Momo verified the payment by decrypting it (not by trusting Pip), delivered "${served.brief.title}", sha256 ${String(served.sha256).slice(0, 12)}…, signature ${sigOk ? "verified" : "FAILED"}`, sigOk ? "good" : "");
+    bubble("momo", `Delivered: "${served.brief.title}".`);
 
     // chain verification of the buyer's own state
     const after = await rebuild(pip);
@@ -266,6 +308,34 @@ async function run() {
     sys(check.ok ? "buyer state verified byte-for-byte against on-chain commitments" : "verify mismatch", check.ok ? "good" : "");
     await wait(300);
     bubble("pip", "Received. Good doing business.");
+
+    // ── Selective disclosure: an examiner shows up. Pip proves THIS payment to them, and only this. ──
+    if ((($("disclose") as HTMLInputElement | null)?.checked ?? true)) {
+      status("examiner requests disclosure…");
+      sys("an examiner appears (fresh keys, no wallet secrets, could be an accountant or regulator). It asks Pip to disclose this one payment.");
+      t = typing("pip", "proving the amount of this exact transfer to the examiner (zero-knowledge, sender-role)");
+      try {
+        // Pip needs the on-chain event for its own transfer
+        const { events: evs } = await hybridFetchEvents(client, undefined, { fromLedger: SESSION.fromLedger });
+        const myEv: any = evs.find((e: any) => e.type === "transfer" && String(e.txHash).toLowerCase() === pay.hash.toLowerCase());
+        if (!myEv) throw new Error("own transfer event not found yet");
+        const [dc, dvk] = await Promise.all([
+          fetch("/circuits/disclose_sender.json").then((r) => r.json()),
+          fetch("/circuits/disclose_sender.vk.json").then((r) => r.json()),
+        ]);
+        const d = await discloseToExaminer({
+          core, client, circuit: dc, vkBase64: dvk.vkBase64, role: "sender", keys: pip.keys, rEScalar: rEScalarForDisclosure,
+          pvkB: momo.keys.PVK, event: myEv, addrF: addressToField(SESSION.contracts.token), disclosingAccount: pip.address,
+        });
+        t();
+        sys(`examiner verified with no keys of its own: this transfer was exactly ${d.amountXlm} XLM (proof ${d.proveSecs}s, verify ${d.verifySecs}s, ${d.steps.length} checks, pinned OpenZeppelin vk). It learned nothing else: not Pip's balance, not other payments, not Momo's side.`, d.ok ? "good" : "");
+        bubble("pip", `Disclosed to the examiner: ${d.amountXlm} XLM for this payment. That's all they get.`);
+        (window as any).__lastDisclosure = d.bundle;
+      } catch (e: any) {
+        t();
+        sys(`disclosure skipped: ${String(e?.message ?? e).replace(/[<>&]/g, "")}`);
+      }
+    }
     status("");
 
     // the receipt, with the actual fee charged
@@ -284,10 +354,11 @@ async function run() {
       $("pip-commit").textContent = Buffer.from(pointToBytes(onchain.spendableBalance)).toString("hex").slice(0, 48) + "…";
       $("momo-commit").textContent = Buffer.from(pointToBytes(vegaOn.receivingBalance)).toString("hex").slice(0, 48) + "…";
       $("pip-dec").textContent = (Number(after.state().spendable.v) / 1e7).toString() + " XLM spendable";
-      $("momo-dec").textContent = (Number(momoAfter) / 1e7).toString() + " XLM received (total)";
+      $("momo-dec").textContent = (Number(momoAfter) / 1e7).toString() + " XLM decrypted from this payment";
       ($("balances") as HTMLElement).style.display = "";
     } catch {}
     pushHistory({ tx: pay.hash, amt: priceXlm, at: new Date().toISOString().slice(0, 16).replace("T", " ") });
+    renderFeed();
   } catch (e: any) {
     const raw = String(e?.message || e?.name || e || "unknown");
     if (raw.includes("dynamically imported module")) {
@@ -368,7 +439,8 @@ function renderHistory() {
     ? `<li><button class="histmore" id="histmore">${historyExpanded ? "show fewer" : `show all ${runs.length}`}</button></li>`
     : "";
   $("history").innerHTML = shown.map(row).join("") + toggle;
-  document.getElementById("histmore")?.addEventListener("click", () => { historyExpanded = !historyExpanded; renderHistory(); });
+  document.getElementById("histmore")?.addEventListener("click", () => { historyExpanded = !historyExpanded; renderHistory();
+ });
 }
 function pushHistory(r: Run) {
   const runs = [r, ...loadHistory()].slice(0, 12);

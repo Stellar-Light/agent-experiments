@@ -40,9 +40,9 @@
   #amt:focus{outline:none;border-color:var(--sub);box-shadow:0 0 0 3px color-mix(in srgb, var(--ink) 10%, transparent)}
   .selwrap{position:relative}
   .selwrap::after{content:"";position:absolute;right:12px;top:50%;width:7px;height:7px;border-right:1.5px solid var(--sub);border-bottom:1.5px solid var(--sub);transform:translateY(-70%) rotate(45deg);pointer-events:none}
-  #denom{-webkit-appearance:none;appearance:none;font-family:var(--sans);font-size:14px;font-weight:500;padding:10px 30px 10px 14px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;transition:border-color .15s,box-shadow .15s}
-  @media (hover: hover) and (pointer: fine){ #denom:hover{border-color:var(--sub)} }
-  #denom:focus{outline:none;border-color:var(--sub);box-shadow:0 0 0 3px color-mix(in srgb, var(--ink) 10%, transparent)}
+  #denom,#style{-webkit-appearance:none;appearance:none;font-family:var(--sans);font-size:14px;font-weight:500;padding:10px 30px 10px 14px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;transition:border-color .15s,box-shadow .15s}
+  @media (hover: hover) and (pointer: fine){ #denom:hover,#style:hover{border-color:var(--sub)} }
+  #denom:focus,#style:focus{outline:none;border-color:var(--sub);box-shadow:0 0 0 3px color-mix(in srgb, var(--ink) 10%, transparent)}
   
   pre.byo{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow-x:auto;font-family:var(--mono);font-size:11.5px;line-height:1.7;margin:8px 0 0}
   .panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:16px 0}
@@ -122,7 +122,7 @@
     .dot{animation:none;opacity:.6}
   }
   @media (pointer: coarse){
-    #amt,#denom{font-size:16px}
+    #amt,#denom,#style{font-size:16px}
     .bubble{font-size:15px}
   }
   @media print{ body *{display:none!important} .slipwrap,.slipwrap *{display:block!important} .slip{box-shadow:none;border:none} }
@@ -132,11 +132,13 @@
 <div class="wrap">
   <header>
     <h1>Confidential Agent Commerce</h1>
-    <p class="sub">Two agents transact on Stellar testnet. The amount settles encrypted on-chain. The seller confirms payment by decrypting it, a registered auditor can always read it, everyone else sees nothing.</p>
+    <p class="sub">Momo is a merchant agent running as a live service with its own pricing policy. Pip is a buyer agent with a budget you set. They negotiate for real, neither sees the other's number, and the price settles encrypted on Stellar testnet. Momo confirms payment by decrypting it, a registered auditor can always read it, everyone else sees nothing.</p>
     <p class="sub" style="font-size:12px;margin-top:8px">Demo keys are published on purpose (testnet, worthless): anyone can decrypt this demo's own amounts. The protocol hides amounts from anyone without keys.</p>
     <div class="runbar">
       <div class="selwrap"><select id="denom" aria-label="currency"><option value="xlm">XLM</option><option value="usd">USD, oracle to XLM</option></select></div>
-      <input id="amt" inputmode="decimal" placeholder="amount (blank = random)" autocomplete="off" aria-label="payment amount">
+      <label style="font-size:12.5px;color:var(--sub);display:inline-flex;align-items:center;gap:6px;white-space:nowrap"><input type="checkbox" id="disclose" checked style="accent-color:var(--ink)"> disclose to an examiner after paying</label>
+      <div class="selwrap"><select id="style" aria-label="Pip's haggling style"><option value="haggle">Pip haggles</option><option value="take">Pip takes the quote</option><option value="stingy">Pip is stingy</option></select></div>
+      <input id="amt" inputmode="decimal" placeholder="Pip's budget (blank = random)" autocomplete="off" aria-label="payment amount">
       <button class="run" id="run">Run payment</button>
       <span class="status" id="status" aria-live="polite"></span>
     </div>
@@ -159,6 +161,12 @@
       <div class="cell"><div class="who">Pip, buyer</div><div>chain holds:</div><div class="commit" id="pip-commit"></div><div>Pip decrypts:</div><div class="dec" id="pip-dec"></div></div>
       <div class="cell"><div class="who">Momo, seller</div><div>chain holds:</div><div class="commit" id="momo-commit"></div><div>Momo decrypts:</div><div class="dec" id="momo-dec"></div></div>
     </div>
+  </div>
+
+  <div class="panel" id="momofeed">
+    <h2>Momo's customers, from the chain</h2>
+    <div style="font-size:12px;color:var(--sub);margin-bottom:8px">Every agent that has ever paid Momo. Momo reads this by replaying public events and decrypting each transfer with its own key. Amounts are visible here only because this is Momo's own view.</div>
+    <ul class="hist" id="feedlist"><li style="color:var(--sub)">loading…</li></ul>
   </div>
 
   <div class="panel" id="histwrap" style="display:none">

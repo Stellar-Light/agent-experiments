@@ -13,7 +13,7 @@ export default async function handler(req: any, res: any) {
   if (req.method === "OPTIONS") { res.status(204).end(); return; }
   try {
     const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body ?? {});
-    const M = merchantById(body.merchant ?? req.query?.merchant);
+    const M = merchantById(body.merchant ?? req.query?.merchant, body.cfg ?? req.query?.cfg);
     const MOMO = M.address;
     const buyer = String(body.buyer ?? "");
     const offer = body.offer != null ? BigInt(Math.round(Number(body.offer) * 1e7)) : null;

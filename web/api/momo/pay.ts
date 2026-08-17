@@ -18,7 +18,7 @@ export default async function handler(req: any, res: any) {
   const tx = String(req.query?.tx ?? "").toLowerCase();
   const agreed = Number(req.query?.agreed ?? NaN);
   const name = String(req.query?.name ?? "agent").slice(0, 24);
-  const M = merchantById(req.query?.merchant);
+  const M = merchantById(req.query?.merchant, req.query?.cfg);
   if (!/^[0-9a-f]{64}$/.test(tx)) { res.status(400).json({ error: "tx hash required" }); return; }
   try {
     const { inbound, engine } = await momoBooks(M);

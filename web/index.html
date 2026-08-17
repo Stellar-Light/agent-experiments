@@ -68,6 +68,18 @@
   .idaddr{font-family:var(--mono);font-size:10px;color:var(--sub);text-decoration:none}
   @media (hover: hover) and (pointer: fine){ .idaddr:hover{color:var(--ink)} }
 
+  .cfg{margin:12px 0 0;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+  .cfg summary{cursor:pointer;padding:10px 14px;font-size:13px;font-weight:600;list-style:none;user-select:none}
+  .cfg summary::-webkit-details-marker{display:none}
+  .cfg summary::before{content:"›";display:inline-block;margin-right:8px;transition:transform .15s;color:var(--sub)}
+  .cfg[open] summary::before{transform:rotate(90deg)}
+  .cfggrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;padding:4px 14px 10px}
+  .cfgh{font-size:12px;font-weight:600;margin-bottom:6px}
+  .cfgcol label{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;color:var(--sub);margin:5px 0}
+  .cfgcol input,.cfgcol select{font-family:var(--sans);font-size:13px;width:96px;padding:5px 8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+  .cfgcol select{width:auto;max-width:150px}
+  .cfgnote{font-size:11.5px;color:var(--sub);padding:0 14px 12px;line-height:1.5}
+  .cfgnote button{font-family:var(--sans);font-size:11px;padding:3px 9px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer;margin-left:6px}
   .chat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 14px;min-height:120px;margin:14px 0;overscroll-behavior:contain}
   .empty{color:var(--sub);font-size:13.5px;text-align:center;padding:26px 10px}
   .row{display:flex;margin:3px 0;animation:pop .25s ease}
@@ -137,8 +149,8 @@
     <div class="runbar">
       <div class="selwrap"><select id="denom" aria-label="currency"><option value="xlm">XLM</option><option value="usd">USD, oracle to XLM</option></select></div>
       <label style="font-size:12.5px;color:var(--sub);display:inline-flex;align-items:center;gap:6px;white-space:nowrap"><input type="checkbox" id="disclose" checked style="accent-color:var(--ink)"> disclose to an examiner after paying</label>
-      <div class="selwrap"><select id="shop" aria-label="Pip's shopping policy"><option value="cheapest">shop: cheapest quote</option><option value="trusted">shop: most track record</option><option value="momo">only Momo</option><option value="kiki">only Kiki</option></select></div>
-      <div class="selwrap"><select id="style" aria-label="Pip's haggling style"><option value="haggle">Pip haggles</option><option value="take">Pip takes the quote</option><option value="stingy">Pip is stingy</option></select></div>
+      <select id="shop" hidden><option value="cheapest"></option><option value="trusted"></option><option value="momo"></option><option value="kiki"></option></select>
+      <select id="style" hidden><option value="haggle"></option><option value="take"></option><option value="stingy"></option></select>
       <input id="amt" inputmode="decimal" placeholder="Pip's budget (blank = random)" autocomplete="off" aria-label="payment amount">
       <button class="run" id="run">Run payment</button>
       <span class="status" id="status" aria-live="polite"></span>
@@ -146,6 +158,39 @@
   </header>
 
   <div class="idstrip" id="idstrip"></div>
+
+  <details class="cfg" id="cfgpanel">
+    <summary>Configure the agents</summary>
+    <div class="cfggrid">
+      <div class="cfgcol">
+        <div class="cfgh">Pip, buyer</div>
+        <label>budget <input id="c-pip-budget" inputmode="decimal" placeholder="blank = random"></label>
+        <label>haggle style
+          <select id="c-pip-style"><option value="haggle">haggles (opens at 60%)</option><option value="stingy">stingy (opens at 40%)</option><option value="take">takes the quote</option></select></label>
+        <label>shopping <select id="c-pip-shop"><option value="cheapest">cheapest quote</option><option value="trusted">most track record</option><option value="momo">only Momo</option><option value="kiki">only Kiki</option></select></label>
+        <label>rounds <input id="c-pip-rounds" inputmode="numeric" value="3"></label>
+      </div>
+      <div class="cfgcol">
+        <div class="cfgh">Momo, merchant</div>
+        <label>list price <input id="c-momo-list" inputmode="decimal" value="5"></label>
+        <label>private floor <input id="c-momo-floor" inputmode="decimal" value="2"></label>
+        <label>surge / payment <input id="c-momo-surge" inputmode="decimal" value="0.3"></label>
+        <label>surge cap <input id="c-momo-cap" inputmode="decimal" value="3"></label>
+        <label>min ticket <input id="c-momo-min" inputmode="decimal" value="0.5"></label>
+        <label>max / hour <input id="c-momo-vel" inputmode="numeric" value="6"></label>
+      </div>
+      <div class="cfgcol">
+        <div class="cfgh">Kiki, merchant</div>
+        <label>list price <input id="c-kiki-list" inputmode="decimal" value="4"></label>
+        <label>private floor <input id="c-kiki-floor" inputmode="decimal" value="3.5"></label>
+        <label>surge / payment <input id="c-kiki-surge" inputmode="decimal" value="0"></label>
+        <label>surge cap <input id="c-kiki-cap" inputmode="decimal" value="0"></label>
+        <label>min ticket <input id="c-kiki-min" inputmode="decimal" value="1"></label>
+        <label>max / hour <input id="c-kiki-vel" inputmode="numeric" value="3"></label>
+      </div>
+    </div>
+    <div class="cfgnote">Merchant identities (keys, on-chain registration) are fixed. Their behavior is yours to set: the negotiation, the till, and the market board all run with what you configure here. Saved in this browser. <button id="c-reset" type="button">reset defaults</button></div>
+  </details>
 
   <div class="chat" id="chat" role="log" aria-live="polite"><div class="empty">Press run. This is not a simulation: a new payment is negotiated, proven, and settled on testnet while you watch. Takes about 20 seconds. Price it in XLM or in dollars (converted live from the reflector oracle). </div></div>
 

@@ -4,11 +4,14 @@
  * Track record = from the chain, decrypted by each merchant's own key.
  */
 import { MERCHANTS, momoBooks, policyQuote } from "../lib/momo.js";
-export default async function handler(_req: any, res: any) {
+import { applyConfig } from "../lib/merchants.js";
+export default async function handler(req: any, res: any) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Cache-Control", "s-maxage=10, stale-while-revalidate=30");
   try {
-    const rows = await Promise.all(Object.values(MERCHANTS).map(async (M) => {
+    // per-merchant configs: ?cfg_momo=<b64>&cfg_kiki=<b64>
+    const rows = await Promise.all(Object.values(MERCHANTS).map(async (M0) => {
+      const M = applyConfig(M0, req.query?.[`cfg_${M0.id}`]);
       const { inbound, receivedTotal } = await momoBooks(M);
       const latest = inbound.length ? Math.max(...inbound.map((e: any) => e.ledger)) : 0;
       const recent = inbound.filter((e: any) => latest - e.ledger < 720).length;

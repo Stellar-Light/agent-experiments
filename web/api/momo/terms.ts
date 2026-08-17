@@ -4,5 +4,5 @@ import { merchantById } from "../../lib/momo.js";
 export default async function handler(_req: any, res: any) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Cache-Control", "s-maxage=30");
-  res.status(200).json(signedTerms(merchantById(_req.query?.merchant)));
+  res.status(200).json(signedTerms(merchantById(_req.query?.merchant, _req.query?.cfg)));
 }

@@ -91,6 +91,41 @@ async function renderFeed() {
 }
 renderFeed();
 
+// ── configure the agents: read the panel, persist, and expose cfg for merchant calls ──
+const CFG_KEYS = ["pip-budget","pip-style","pip-shop","pip-rounds","momo-list","momo-floor","momo-surge","momo-cap","momo-min","momo-vel","kiki-list","kiki-floor","kiki-surge","kiki-cap","kiki-min","kiki-vel"];
+function cfgLoad() {
+  try {
+    const saved = JSON.parse(localStorage.getItem("agentcfg") || "{}");
+    for (const k of CFG_KEYS) { const el = document.getElementById("c-" + k) as HTMLInputElement | HTMLSelectElement | null; if (el && saved[k] != null) el.value = saved[k]; }
+  } catch {}
+  cfgSync();
+}
+function cfgSave() {
+  const out: any = {};
+  for (const k of CFG_KEYS) { const el = document.getElementById("c-" + k) as HTMLInputElement | null; if (el) out[k] = el.value; }
+  try { localStorage.setItem("agentcfg", JSON.stringify(out)); } catch {}
+  cfgSync();
+}
+function cfgSync() {
+  const g = (k: string) => (document.getElementById("c-" + k) as HTMLInputElement | null)?.value ?? "";
+  const shop = document.getElementById("shop") as HTMLSelectElement | null; if (shop) shop.value = g("pip-shop") || "cheapest";
+  const style = document.getElementById("style") as HTMLSelectElement | null; if (style) style.value = g("pip-style") || "haggle";
+  const amt = document.getElementById("amt") as HTMLInputElement | null; if (amt && g("pip-budget") !== "") amt.value = g("pip-budget");
+}
+export function merchantCfg(id: "momo" | "kiki") {
+  const g = (k: string) => (document.getElementById(`c-${id}-${k}`) as HTMLInputElement | null)?.value;
+  const c = { listXlm: g("list"), floorXlm: g("floor"), surgePerPaymentXlm: g("surge"), surgeCapXlm: g("cap"), minTicketXlm: g("min"), maxPaymentsPerCustomerPerHour: g("vel") };
+  return btoa(JSON.stringify(c));
+}
+export function pipRounds() { const v = Number((document.getElementById("c-pip-rounds") as HTMLInputElement | null)?.value); return Number.isFinite(v) && v >= 1 ? Math.min(6, Math.round(v)) : 3; }
+document.addEventListener("DOMContentLoaded", () => {
+  cfgLoad();
+  document.getElementById("cfgpanel")?.addEventListener("input", cfgSave);
+  document.getElementById("cfgpanel")?.addEventListener("change", cfgSave);
+  document.getElementById("amt")?.addEventListener("input", () => { const b = document.getElementById("c-pip-budget") as HTMLInputElement | null; if (b) { b.value = (document.getElementById("amt") as HTMLInputElement).value; cfgSave(); } });
+  document.getElementById("c-reset")?.addEventListener("click", () => { localStorage.removeItem("agentcfg"); location.reload(); });
+});
+
 // USD mode: live XLM/USD from the reflector oracle (mainnet, read-only, keyless)
 async function xlmUsdRate(sdk: any): Promise<number> {
   const { Contract, TransactionBuilder, Networks, xdr: X, scValToNative, rpc } = sdk;
@@ -200,7 +235,7 @@ async function run() {
     status("Pip reads the market");
     let chosen: any = null;
     try {
-      const mk = await fetch("/api/market").then((r) => r.json());
+      const mk = await fetch(`/api/market?cfg_momo=${merchantCfg("momo")}&cfg_kiki=${merchantCfg("kiki")}`).then((r) => r.json());
       const rows: any[] = mk.merchants ?? [];
       const shopPolicy = (($("shop") as HTMLSelectElement | null)?.value ?? "cheapest") as "cheapest" | "trusted" | "momo" | "kiki";
       const trusted = rows.filter((r) => r.trackRecord.payments >= 3);
@@ -220,7 +255,7 @@ async function run() {
     status(`Pip reads ${chosen.name}'s terms`);
     let terms: any = null;
     try {
-      terms = await fetch(`/api/momo/terms?merchant=${MID}`).then((r) => r.json());
+      terms = await fetch(`/api/momo/terms?merchant=${MID}&cfg=${merchantCfg(MID as any)}`).then((r) => r.json());
       const tOk = sellerKp.verify((await import("@stellar/stellar-sdk")).hash(Buffer.from(JSON.stringify({ seller: terms.seller, terms: terms.terms, issuedAt: terms.issuedAt }))), Buffer.from(terms.signature, "base64"));
       sys(`Pip fetched ${chosen.name}'s terms v${terms.terms.version} (signed by ${chosen.name}, signature ${tOk ? "verified" : "FAILED"}): min ticket ${terms.terms.minTicketXlm} XLM, max ${terms.terms.maxPaymentsPerCustomerPerHour} payments/customer/hour, ${terms.terms.blocklist.length} blocked counterparty. ${chosen.name} is examinable by auditor #${terms.terms.auditorId}, by protocol.`);
     } catch { sys(`could not fetch ${chosen.name}'s terms; proceeding without them`); }
@@ -230,7 +265,7 @@ async function run() {
     bubble("pip", "Need the settlement brief. What's your price today?");
     let t = typing("momo", `${chosen.name} checks its books`);
     const q1 = await fetch("/api/momo/quote", { method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ buyer: pip.address, merchant: MID }) }).then((r) => r.json());
+      body: JSON.stringify({ buyer: pip.address, merchant: MID, cfg: merchantCfg(MID as any) }) }).then((r) => r.json());
     t();
     if (!q1?.priceXlm) throw new Error(`${chosen.name} did not answer`);
     bubble("momo", `${q1.priceXlm} XLM. ${q1.rationale}. Pay confidentially; the amount stays between us and the auditor.`);
@@ -245,18 +280,18 @@ async function run() {
     if (quoted <= budget && style === "take") {
       agreed = quoted; bubble("pip", `${xl(quoted)} works. Paying now.`);
       const qa = await fetch("/api/momo/quote", { method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ buyer: pip.address, accept: true, merchant: MID }) }).then((r) => r.json());
+        body: JSON.stringify({ buyer: pip.address, accept: true, merchant: MID, cfg: merchantCfg(MID as any) }) }).then((r) => r.json());
       invoiceDoc = qa.invoice ?? null;
     } else {
       // counter: haggle opens at ~60% of the quote (capped at budget); stingy opens at 40%
       const openFrac = style === "stingy" ? 0.4 : 0.6;
       let offer = BigInt(Math.round(Number(quoted) * openFrac));
       if (offer > budget) offer = budget;
-      for (let round = 0; round < 3 && agreed === null; round++) {
+      for (let round = 0; round < pipRounds() && agreed === null; round++) {
         bubble("pip", round === 0 ? `Steep. I can do ${xl(offer)}.` : `Meet me at ${xl(offer)}?`);
         t = typing("momo", "considering the offer");
         const q2 = await fetch("/api/momo/quote", { method: "POST", headers: { "content-type": "application/json" },
-          body: JSON.stringify({ buyer: pip.address, offer: Number(offer) / 1e7, merchant: MID }) }).then((r) => r.json());
+          body: JSON.stringify({ buyer: pip.address, offer: Number(offer) / 1e7, merchant: MID, cfg: merchantCfg(MID as any) }) }).then((r) => r.json());
         t();
         if (q2.accepted) { agreed = offer; invoiceDoc = q2.invoice ?? null; bubble("momo", `${q2.note}. ${xl(offer)} it is.`); break; }
         bubble("momo", `${q2.note}.`);
@@ -266,7 +301,7 @@ async function run() {
           if (quoted <= budget) {
             agreed = quoted; bubble("pip", `Fine, ${xl(quoted)}. Paying.`);
             const qa = await fetch("/api/momo/quote", { method: "POST", headers: { "content-type": "application/json" },
-              body: JSON.stringify({ buyer: pip.address, accept: true, merchant: MID }) }).then((r) => r.json());
+              body: JSON.stringify({ buyer: pip.address, accept: true, merchant: MID, cfg: merchantCfg(MID as any) }) }).then((r) => r.json());
             invoiceDoc = qa.invoice ?? null;
           }
           else { bubble("pip", `That's over my budget. Walking away.`); }
@@ -340,7 +375,7 @@ async function run() {
       const attest = invoiceDoc ? pipKp.sign((await import("@stellar/stellar-sdk")).hash(Buffer.from(JSON.stringify({ invoiceId: invoiceDoc.invoiceId, tx: pay.hash })))).toString("base64") : null;
       if (!invoiceDoc) throw new Error("no invoice was issued for this deal; refusing to pay unbound");
       const invParam = `&invoice=${encodeURIComponent(btoa(JSON.stringify({ invoice: invoiceDoc.invoice, signature: invoiceDoc.signature, attest })))}`;
-      const resp = await fetch(`/api/momo/pay?tx=${pay.hash}&agreed=${priceXlm}&name=Pip&merchant=${MID}${invParam}`);
+      const resp = await fetch(`/api/momo/pay?tx=${pay.hash}&agreed=${priceXlm}&name=Pip&merchant=${MID}&cfg=${merchantCfg(MID as any)}${invParam}`);
       served = await resp.json().catch(() => null);
       if (served?.delivered) break;
       if (served?.paid && served?.decryptedXlm != null && !served?.delivered) break; // mismatch, no retry

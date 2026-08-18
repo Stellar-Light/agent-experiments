@@ -11,7 +11,7 @@
           "v": "0x26442480",
           "r": "0x186bb62fe43e758d1d6aaa66ac8e351883c996e33ad3758ea9aba1f30a68a177"
         },
-        "lastLedger": 4189680,
+        "lastLedger": 4198616,
         "inbound": [
           {
             "txHash": "4f295698d3280af1c0a110377bb8350eeb895cef8e87fd5e764e60d167fbdbba",
@@ -561,21 +561,21 @@
           }
         ]
       },
-      "savedAt": "2026-08-17T12:38:04.634Z",
-      "savedAtLedger": 4189680
+      "savedAt": "2026-08-18T01:04:07.457Z",
+      "savedAtLedger": 4198616
     },
     "pip": {
       "address": "GDE76W4TRKRFTU7JREGV5ZJ4CUHPLDYFJWJE6P2JUHW3VMXDS6SLOG7T",
       "state": {
         "spendable": {
-          "v": "0x19ff909d",
-          "r": "0x10928bb5f4fd177cd7f696593c32a21ee071dc0897a907079bbd52c9d5379bd8"
+          "v": "0x138f9d9d",
+          "r": "0x11aa79f9e0cece7e8ed3595ae04a8c4d5b3be2797b88622d005c1b1186633e56"
         },
         "receiving": {
           "v": "0x3ec02f111",
           "r": "0x2b06b3f7a4a02a2a9a3639f551bcb36067355e75fb5292234bff6f628ad42157"
         },
-        "lastLedger": 4189680,
+        "lastLedger": 4198616,
         "inbound": [
           {
             "txHash": "3d269ef19ff2f98d33b7f7bc0dd0df8d9243fe1f79915548014736fca94fd15a",
@@ -761,8 +761,8 @@
           }
         ]
       },
-      "savedAt": "2026-08-17T12:38:04.934Z",
-      "savedAtLedger": 4189680
+      "savedAt": "2026-08-18T01:04:07.555Z",
+      "savedAtLedger": 4198616
     },
     "kiki": {
       "address": "GAC44VFGUANLA5Y2S6OZYG7WQUVGFFDLD7ZPBE5KAZW5OBNPEYQETM2U",
@@ -772,10 +772,10 @@
           "r": "0x0"
         },
         "receiving": {
-          "v": "0xaf79e00",
-          "r": "0x1bc4b7e68c32e86ce06d382f4b09bdd29bc4bed37cd3cb5632e732f33c46066d"
+          "v": "0x11679100",
+          "r": "0x19f80ba5976583df3d9e6d014288db08a3573cf310c31db1bcc9dabe18c51d52"
         },
-        "lastLedger": 4189680,
+        "lastLedger": 4198616,
         "inbound": [
           {
             "txHash": "2472e1c78a0a89d504248f8fd7a471f5cf8c644b15c2929e7afd395238709b84",
@@ -841,12 +841,51 @@
             },
             "vTilde": "0xaed3af32a2ba7b9ae6f733fe10ecfd4aaad80a21409c0fe2bc138dbe395f920",
             "sigma": "0x10641dd921f63ee711f58f4eea19eea1ee6dde709b94d0e195853644dbbd1c5"
+          },
+          {
+            "txHash": "17b48b17bbb8df503b3c6ec51be6951431cd9c589065d235399bfcbf5a6ad117",
+            "ledger": 4190646,
+            "from": "GDE76W4TRKRFTU7JREGV5ZJ4CUHPLDYFJWJE6P2JUHW3VMXDS6SLOG7T",
+            "amount": 3.6,
+            "rE": {
+              "X": "0xff1e821151c5923d30c6ed37aabfc44d47633697b6877e6b71c474b95e481cf",
+              "Y": "0x806057edd888a402fdb4fad93b8f28a949ad3502493d0d811ec6e96d2031c2a",
+              "Z": "0x1"
+            },
+            "vTilde": "0x17865c7d7639abbe36ef7a4eee133362a6955d465380778c9d69b4e8af7326bd",
+            "sigma": "0x1332add82bd332673160ebd9e027e573eaef6f2651ca46bc5d3f369ed240a199"
+          },
+          {
+            "txHash": "3f134b0a0154d0332469ab7c5062ae3ade5490e5855d1f685a4faee73e4485ff",
+            "ledger": 4190661,
+            "from": "GDE76W4TRKRFTU7JREGV5ZJ4CUHPLDYFJWJE6P2JUHW3VMXDS6SLOG7T",
+            "amount": 3.6,
+            "rE": {
+              "X": "0x219931c8793eeb59c67b87ed04ff93611c07366b61ac398fb33555a548f3e611",
+              "Y": "0x2688f037cab61baee3a0b1390b91a507376e62c79daa4ff1e5c25849935605ad",
+              "Z": "0x1"
+            },
+            "vTilde": "0x1f18249ceaf2173b49d3815d6ea09e771c09c00fe9b3f48ebb21a226e2fcb53e",
+            "sigma": "0x11d327777caf50d334089a2468c0a986046237c9596320e8b1d0767ac105be60"
+          },
+          {
+            "txHash": "71889e0c3ecd316e8d918a51ecd1508735fe92a82f86bc7ccc97eb2c81ad83d8",
+            "ledger": 4190677,
+            "from": "GDE76W4TRKRFTU7JREGV5ZJ4CUHPLDYFJWJE6P2JUHW3VMXDS6SLOG7T",
+            "amount": 3.6,
+            "rE": {
+              "X": "0x14beb25542d2de9913b780d24927ea4a589257d3a28e3e720c3a31d49f56ed4a",
+              "Y": "0x224f7f4e7b8151ea6a3cb8fc270bd105ded3c766879380b93de60ad74d1e7cae",
+              "Z": "0x1"
+            },
+            "vTilde": "0x100d428c6567218b8c34a1dbd593a8ff4d29940f4a533d81a2e109e0ee405089",
+            "sigma": "0xda7b4f15ee99baf9e68d60edb311a238250cb692c414e3902d65f5422d21fa0"
           }
         ]
       },
-      "savedAt": "2026-08-17T12:38:05.296Z",
-      "savedAtLedger": 4189680
+      "savedAt": "2026-08-18T01:04:07.673Z",
+      "savedAtLedger": 4198616
     }
   },
-  "savedAt": "2026-08-17T12:38:05.296Z"
+  "savedAt": "2026-08-18T01:04:07.673Z"
 }

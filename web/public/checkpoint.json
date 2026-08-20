@@ -11,7 +11,7 @@
           "v": "0x26442480",
           "r": "0x186bb62fe43e758d1d6aaa66ac8e351883c996e33ad3758ea9aba1f30a68a177"
         },
-        "lastLedger": 4233115,
+        "lastLedger": 4241473,
         "inbound": [
           {
             "txHash": "4f295698d3280af1c0a110377bb8350eeb895cef8e87fd5e764e60d167fbdbba",
@@ -561,21 +561,21 @@
           }
         ]
       },
-      "savedAt": "2026-08-20T01:04:17.518Z",
-      "savedAtLedger": 4233115
+      "savedAt": "2026-08-20T12:42:07.179Z",
+      "savedAtLedger": 4241473
     },
     "pip": {
       "address": "GDE76W4TRKRFTU7JREGV5ZJ4CUHPLDYFJWJE6P2JUHW3VMXDS6SLOG7T",
       "state": {
         "spendable": {
-          "v": "0x116a4c9d",
-          "r": "0x21a5ef63fca432b3eeef70aaeb1a49ab5d3edc594718e7d8dc657e2a3d1f4f7b"
+          "v": "0xf44fb9d",
+          "r": "0x15e3e3af222ef444cc56a7f259241ec45e5afb07b3ff38b217828c3290a8a741"
         },
         "receiving": {
           "v": "0x3ec02f111",
           "r": "0x2b06b3f7a4a02a2a9a3639f551bcb36067355e75fb5292234bff6f628ad42157"
         },
-        "lastLedger": 4233115,
+        "lastLedger": 4241473,
         "inbound": [
           {
             "txHash": "3d269ef19ff2f98d33b7f7bc0dd0df8d9243fe1f79915548014736fca94fd15a",
@@ -761,8 +761,8 @@
           }
         ]
       },
-      "savedAt": "2026-08-20T01:04:17.595Z",
-      "savedAtLedger": 4233115
+      "savedAt": "2026-08-20T12:42:07.431Z",
+      "savedAtLedger": 4241473
     },
     "kiki": {
       "address": "GAC44VFGUANLA5Y2S6OZYG7WQUVGFFDLD7ZPBE5KAZW5OBNPEYQETM2U",
@@ -772,10 +772,10 @@
           "r": "0x0"
         },
         "receiving": {
-          "v": "0x138ce200",
-          "r": "0x24d2cefcbb1b0578d224bf50178cd7fed057ad20baefe926c21895d02445ffac"
+          "v": "0x15b23300",
+          "r": "0x1a1e252814e23856a03a56330626679c837bc62712e5d8113d4c8b96c2669ab"
         },
-        "lastLedger": 4233115,
+        "lastLedger": 4241473,
         "inbound": [
           {
             "txHash": "2472e1c78a0a89d504248f8fd7a471f5cf8c644b15c2929e7afd395238709b84",
@@ -893,12 +893,25 @@
             },
             "vTilde": "0x2f615ada52bbe42e0b1f00adb133da1d8fb52d37efdbd0bd0b27f23532cbfd80",
             "sigma": "0x1e62718540c8276ce50060beefecd76da04e79e2e7e0852482427cb895e819b3"
+          },
+          {
+            "txHash": "31b11530d83ed5a22472bc11c9816ef62d0395734bcb313c83228435396ab2cf",
+            "ledger": 4233780,
+            "from": "GDE76W4TRKRFTU7JREGV5ZJ4CUHPLDYFJWJE6P2JUHW3VMXDS6SLOG7T",
+            "amount": 3.6,
+            "rE": {
+              "X": "0xd2588363d4cefe81bd3ec6da3c20d05c4d986067036eecd45c688febf0969d3",
+              "Y": "0x2c0a068c0f9f924b50fec0ccfadb7d804c8e6e8a5d4bdde126557746d6ff74b",
+              "Z": "0x1"
+            },
+            "vTilde": "0x1a39b83351958938b7f1d75f7dc2667340e5a16837e6c87cbc203945005ff6f7",
+            "sigma": "0x5eabb39ac0a48890e25940c7df1f4f5406ba0507001fc8fb5d1801c473a8da2"
           }
         ]
       },
-      "savedAt": "2026-08-20T01:04:17.656Z",
-      "savedAtLedger": 4233115
+      "savedAt": "2026-08-20T12:42:07.717Z",
+      "savedAtLedger": 4241473
     }
   },
-  "savedAt": "2026-08-20T01:04:17.656Z"
+  "savedAt": "2026-08-20T12:42:07.717Z"
 }
